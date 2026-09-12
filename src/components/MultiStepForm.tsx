@@ -1,5 +1,6 @@
 "use client";
 
+import { Ticket } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -203,7 +204,7 @@ export function MultiStepForm() {
         ))}
       </ol>
 
-      <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-10">
+      <div key={step} className="step-enter mt-8 rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-10">
         {step === 0 && (
           <div className="grid gap-6 md:grid-cols-2">
             <div className="md:col-span-2">
@@ -307,7 +308,7 @@ export function MultiStepForm() {
                 {INTERESTS.map((i) => (
                   <button key={i} type="button" onClick={() => toggleInterest(i)}
                     aria-pressed={d.interests.includes(i)}
-                    className={`rounded-full border px-4 py-2 text-sm transition ${
+                    className={`rounded-full border px-4 py-2 text-sm pressable transition-colors ${
                       d.interests.includes(i)
                         ? "border-ember bg-ember/15 text-ember"
                         : "border-white/12 text-white/65 hover:border-white/30"
@@ -420,7 +421,9 @@ export function MultiStepForm() {
         {step === 4 && (
           <div className="grid gap-8 md:grid-cols-2">
             <div className="md:col-span-2">
-              <h2 className="font-display text-2xl">🎟️ Secure your seat</h2>
+              <h2 className="flex items-center gap-2.5 font-display text-2xl">
+                <Ticket className="h-6 w-6 text-ember-soft" aria-hidden /> Secure your seat
+              </h2>
               <p className="mt-1 text-sm text-white/55">Review, then pay. Registration ID is issued instantly.</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
@@ -441,7 +444,7 @@ export function MultiStepForm() {
               <button
                 onClick={payOnline}
                 disabled={paying}
-                className="mt-5 w-full rounded-full bg-ember px-6 py-3.5 font-bold text-ink transition hover:bg-ember-deep disabled:opacity-60"
+                className="mt-5 w-full rounded-full bg-ember px-6 py-3.5 font-bold text-ink pressable transition-colors hover:bg-ember-deep disabled:opacity-60"
               >
                 {paying ? "Processing…" : `PROCEED TO PAYMENT · ${formatINR(price)}`}
               </button>
@@ -457,7 +460,7 @@ export function MultiStepForm() {
                     }
                     confirmRegistration("awaiting_verification");
                   }}
-                  className="mt-3 w-full rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/85 transition hover:border-ember/60 hover:text-ember"
+                  className="mt-3 w-full rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/85 pressable transition-colors hover:border-ember/60 hover:text-ember"
                 >
                   Submit UTR for verification
                 </button>
@@ -475,14 +478,14 @@ export function MultiStepForm() {
           <button
             onClick={() => setStep((s) => Math.max(s - 1, 0))}
             disabled={step === 0}
-            className="rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white/70 transition hover:border-white/40 disabled:opacity-40"
+            className="rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white/70 pressable transition-colors hover:border-white/40 disabled:opacity-40"
           >
             ← Back
           </button>
           {step < 4 && (
             <button
               onClick={next}
-              className="rounded-full bg-cream px-8 py-3 text-sm font-bold text-ink transition hover:bg-white"
+              className="rounded-full bg-cream px-8 py-3 text-sm font-bold text-ink pressable transition-colors hover:bg-white"
             >
               Continue →
             </button>

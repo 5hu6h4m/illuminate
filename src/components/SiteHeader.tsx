@@ -30,7 +30,7 @@ export function SiteHeader() {
         </nav>
         <Link
           href="/register"
-          className="rounded-full bg-ember px-5 py-2 text-sm font-semibold text-white transition hover:bg-ember-deep lg:hidden"
+          className="rounded-full bg-ember px-5 py-2 text-sm font-semibold text-white pressable transition-colors hover:bg-ember-deep lg:hidden"
         >
           Register
         </Link>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { BadgeCheck, Clock } from "lucide-react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -62,7 +63,7 @@ export default function AdminPage() {
           />
           <button
             onClick={() => (pin === "met2026" ? setAuthed(true) : alert("Wrong passcode (hint: met2026)"))}
-            className="mt-4 w-full rounded-full bg-ember px-6 py-3 font-bold text-ink"
+            className="pressable mt-4 w-full rounded-full bg-ember px-6 py-3 font-bold text-white transition-colors hover:bg-ember-deep"
           >
             Unlock dashboard
           </button>
@@ -84,7 +85,7 @@ export default function AdminPage() {
           </div>
           <button
             onClick={() => downloadCSV("illuminate-participants.csv", toCSV(rows))}
-            className="rounded-full bg-ember px-6 py-3 text-sm font-bold text-ink hover:bg-ember-deep"
+            className="pressable rounded-full bg-ember px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-ember-deep"
           >
             EXPORT PARTICIPANTS (CSV)
           </button>
@@ -95,8 +96,8 @@ export default function AdminPage() {
             ["Total", stats.total],
             ["Paid", stats.paid],
             ["Pending", stats.pending],
-            ["Campus ⛺", stats.campus],
-            ["Travel 🚌", stats.travel],
+            ["Campus visit", stats.campus],
+            ["Travel", stats.travel],
           ].map(([k, v]) => (
             <div key={k} className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-center">
               <p className="font-display text-4xl text-ember">{v}</p>
@@ -132,14 +133,24 @@ export default function AdminPage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                <tr key={r.id} className="border-b border-white/5 transition-colors hover:bg-white/[0.02]">
                   <td className="px-5 py-4 font-mono text-xs text-ember">{r.id.slice(-5)}</td>
                   <td className="px-5 py-4">{r.fullName}</td>
                   <td className="max-w-[200px] truncate px-5 py-4 text-white/65">{r.email}</td>
                   <td className="px-5 py-4 text-white/65">{r.mobile}</td>
                   <td className="px-5 py-4 text-white/65">{r.branch}</td>
                   <td className="px-5 py-4 text-white/65">{r.year}</td>
-                  <td className="px-5 py-4">{r.paymentStatus === "paid" ? "✅ Paid" : `⏳ ${r.paymentStatus}`}</td>
+                  <td className="px-5 py-4">
+                    {r.paymentStatus === "paid" ? (
+                      <span className="inline-flex items-center gap-1.5 text-emerald-300">
+                        <BadgeCheck className="h-4 w-4" aria-hidden /> Paid
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-amber-200">
+                        <Clock className="h-4 w-4" aria-hidden /> {r.paymentStatus}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-5 py-4">{r.campusVisit}</td>
                   <td className="px-5 py-4">{r.willingToTravel}</td>
                 </tr>

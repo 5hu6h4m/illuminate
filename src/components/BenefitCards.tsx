@@ -1,10 +1,25 @@
-const CARDS = [
-  { icon: "🎓", title: "IIT Bombay Certificate", text: "Get a Certificate from E-Cell IIT Bombay after attending the workshop." },
-  { icon: "🏛️", title: "IIT Bombay Campus Visit", text: "Exclusive opportunity to visit IIT Bombay Campus for selected / top participants.*" },
-  { icon: "🚀", title: "Startup Kit", text: "Every participant gets an Illuminate Startup Kit for hands-on entrepreneurship learning." },
-  { icon: "🎤", title: "Interactive 6-Hour Experience", text: "Interactive sessions, speakers, activities and exclusive entrepreneurship content." },
-  { icon: "🤝", title: "Networking", text: "Connect with students interested in startups, business, innovation and technology." },
-  { icon: "🏆", title: "E-Summit IIT Bombay Benefits", text: "Exclusive benefits related to E-Summit IIT Bombay, including opportunities for passes, accommodation and networking." },
+import {
+  Bus,
+  GraduationCap,
+  Handshake,
+  Landmark,
+  Mic,
+  Rocket,
+  Trophy,
+  type LucideIcon,
+} from "lucide-react";
+import { IconTile } from "@/components/IconTile";
+import { Reveal } from "@/components/Reveal";
+
+type Card = { icon: LucideIcon; title: string; text: string };
+
+const CARDS: Card[] = [
+  { icon: GraduationCap, title: "IIT Bombay Certificate", text: "Get a Certificate from E-Cell IIT Bombay after attending the workshop." },
+  { icon: Landmark, title: "IIT Bombay Campus Visit", text: "Exclusive opportunity to visit IIT Bombay Campus for selected / top participants.*" },
+  { icon: Rocket, title: "Startup Kit", text: "Every participant gets an Illuminate Startup Kit for hands-on entrepreneurship learning." },
+  { icon: Mic, title: "Interactive 6-Hour Experience", text: "Interactive sessions, speakers, activities and exclusive entrepreneurship content." },
+  { icon: Handshake, title: "Networking", text: "Connect with students interested in startups, business, innovation and technology." },
+  { icon: Trophy, title: "E-Summit IIT Bombay Benefits", text: "Exclusive benefits related to E-Summit IIT Bombay, including opportunities for passes, accommodation and networking." },
 ];
 
 export function BenefitCards() {
@@ -29,7 +44,7 @@ export function BenefitCards() {
             }}
           />
           <div className="relative flex flex-col items-start gap-6 md:flex-row md:items-center">
-            <span className="text-5xl md:text-6xl" aria-hidden>🚌</span>
+            <IconTile icon={Bus} size="lg" />
             <div>
               <p className="inline-block rounded-full bg-ember px-4 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white">
                 Biggest hook · Top 30 only
@@ -46,15 +61,14 @@ export function BenefitCards() {
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 md:gap-8">
-          {CARDS.map((c) => (
-            <article
-              key={c.title}
-              className="rounded-3xl border border-ember/25 bg-ember/[0.05] p-8 transition hover:border-ember/60 hover:shadow-[0_0_35px_rgba(139,92,246,0.25)]"
-            >
-              <div className="text-3xl" aria-hidden>{c.icon}</div>
-              <h3 className="mt-5 font-display text-xl tracking-wide">{c.title}</h3>
-              <p className="mt-3 leading-relaxed text-white/60">{c.text}</p>
-            </article>
+          {CARDS.map((c, i) => (
+            <Reveal key={c.title} delay={(i % 3) * 60}>
+              <article className="lift h-full rounded-3xl border border-ember/25 bg-ember/[0.05] p-8 hover:border-ember/60 hover:shadow-[0_0_35px_rgba(139,92,246,0.25)]">
+                <IconTile icon={c.icon} />
+                <h3 className="mt-5 font-display text-xl tracking-wide">{c.title}</h3>
+                <p className="mt-3 leading-relaxed text-white/60">{c.text}</p>
+              </article>
+            </Reveal>
           ))}
         </div>
         <p className="mt-8 text-center text-xs text-white/40">*Subject to applicable eligibility / selection criteria.</p>

@@ -16,6 +16,11 @@ html {
   scroll-behavior: smooth;
 }
 
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
 body {
   background: var(--color-ink);
   color: var(--color-cream);
@@ -45,6 +50,10 @@ body {
   display: inline-block;
   transform: skewX(-12deg);
   isolation: isolate;
+  transition: transform 160ms var(--ease-out);
+}
+.skew-btn:active {
+  transform: skewX(-12deg) scale(0.96);
 }
 .skew-btn > .skew-fill {
   position: relative;
@@ -64,10 +73,83 @@ body {
   z-index: 0;
   transform: translate(7px, 7px);
   border: 2px solid var(--skew-line, #fff);
-  transition: transform 0.25s ease;
+  transition: transform 200ms var(--ease-out);
 }
 .skew-btn:hover::after {
   transform: translate(3px, 3px);
+}
+
+/* Press feedback — every pressable scales subtly, responds in 160ms */
+.pressable {
+  transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out),
+    border-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+.pressable:active {
+  transform: scale(0.97);
+}
+
+/* Card lift — hover motion only on precise pointers */
+.lift {
+  transition: transform 200ms var(--ease-out), border-color 200ms var(--ease-out),
+    box-shadow 250ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .lift:hover {
+    transform: translateY(-3px);
+  }
+}
+
+/* Staggered scroll reveals (decorative, once) */
+.reveal {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+  transition: opacity 300ms var(--ease-out), transform 300ms var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+/* Form step change — quick fade/slide, never blocks input */
+.step-enter {
+  animation: step-in 220ms var(--ease-out);
+}
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--color-ember);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .step-enter {
+    animation: none;
+  }
+  .lift,
+  .pressable,
+  .skew-btn {
+    transition: none;
+  }
 }
 
 /* Starfield dots */

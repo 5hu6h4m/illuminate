@@ -1,3 +1,6 @@
+import { FlaskConical, Handshake, Target, type LucideIcon } from "lucide-react";
+import { IconTile } from "@/components/IconTile";
+import { Reveal } from "@/components/Reveal";
 import { StructureCube } from "@/components/StructureCube";
 
 export function AboutSection() {
@@ -15,16 +18,20 @@ export function AboutSection() {
           startup principles, delivered by an expert trainer.
         </p>
         <div className="mx-auto mt-10 grid max-w-4xl gap-6 text-left sm:grid-cols-3">
-          {[
-            ["🎯", "Vision", "Inspire, educate and empower students to become entrepreneurial leaders of tomorrow."],
-            ["🧪", "Format", "Interactive speaker sessions, activities and case-based learning — not a lecture."],
-            ["🤝", "Host", "E-Cell MET Bhujbal Knowledge City, in collaboration with E-Cell IIT Bombay."],
-          ].map(([icon, title, text]) => (
-            <article key={title} className="rounded-3xl border border-ember/25 bg-ember/[0.05] p-7">
-              <div className="text-3xl" aria-hidden>{icon}</div>
-              <h3 className="mt-4 font-display text-xl">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/60">{text}</p>
-            </article>
+          {(
+            [
+              [Target, "Vision", "Inspire, educate and empower students to become entrepreneurial leaders of tomorrow."],
+              [FlaskConical, "Format", "Interactive speaker sessions, activities and case-based learning — not a lecture."],
+              [Handshake, "Host", "E-Cell MET Bhujbal Knowledge City, in collaboration with E-Cell IIT Bombay."],
+            ] as [LucideIcon, string, string][]
+          ).map(([Icon, title, text], i) => (
+            <Reveal key={title} delay={i * 60}>
+              <article className="lift h-full rounded-3xl border border-ember/25 bg-ember/[0.05] p-7">
+                <IconTile icon={Icon} />
+                <h3 className="mt-4 font-display text-xl">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-white/60">{text}</p>
+              </article>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -64,15 +71,17 @@ export function GuidelinesSection() {
         <h2 className="mt-4 text-center font-display text-3xl md:text-5xl">How the day works</h2>
         <ol className="mt-10 space-y-4">
           {GUIDELINES.map((g, i) => (
-            <li
+            <Reveal
               key={g}
+              as="li"
+              delay={Math.min(i, 4) * 50}
               className="flex items-start gap-5 rounded-3xl border border-ember/20 bg-white/[0.02] p-6"
             >
               <span className="font-display text-2xl text-ember-soft">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <p className="leading-relaxed text-white/70">{g}</p>
-            </li>
+            </Reveal>
           ))}
         </ol>
       </div>

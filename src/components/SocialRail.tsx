@@ -36,7 +36,7 @@ export function SocialRail() {
           rel="noreferrer"
           aria-label={s.label}
           title={s.label}
-          className="rounded-xl p-2 text-white transition hover:bg-white/20"
+          className="rounded-xl p-2 text-white pressable transition-colors hover:bg-white/20"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
             <path d={s.path} />

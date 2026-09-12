@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Reveal } from "@/components/Reveal";
 
 const STEPS = [
   { n: "01", t: "Personal details", d: "Name exactly as you want it on the certificate." },
@@ -15,9 +16,11 @@ export function FlowSteps() {
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ember">How it works</p>
         <h2 className="mt-4 font-display text-3xl md:text-5xl">Calm, guided, in minutes</h2>
         <ol className="mt-12 space-y-5">
-          {STEPS.map((s) => (
-            <li
+          {STEPS.map((s, i) => (
+            <Reveal
               key={s.n}
+              as="li"
+              delay={Math.min(i, 4) * 50}
               className="flex flex-col gap-2 rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:flex-row sm:items-baseline sm:gap-8 md:p-8"
             >
               <span className="font-display text-2xl text-ember">{s.n}</span>
@@ -25,12 +28,12 @@ export function FlowSteps() {
                 <h3 className="text-lg font-semibold">{s.t}</h3>
                 <p className="mt-1 text-white/60">{s.d}</p>
               </div>
-            </li>
+            </Reveal>
           ))}
         </ol>
         <Link
           href="/register"
-          className="mt-10 inline-block rounded-full border border-ember/50 px-8 py-3.5 font-semibold text-ember transition hover:bg-ember hover:text-ink"
+          className="pressable mt-10 inline-block rounded-full border border-ember/50 px-8 py-3.5 font-semibold text-ember transition-colors hover:bg-ember hover:text-ink"
         >
           Start step 1 →
         </Link>

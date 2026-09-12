@@ -1,3 +1,4 @@
+import { Flame } from "lucide-react";
 import Link from "next/link";
 import { formatINR, PRICING, savings } from "@/lib/pricing";
 
@@ -6,8 +7,8 @@ export function EarlyBirdBand() {
     <section id="early-bird" className="section border-t border-white/8">
       <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 md:grid-cols-2 md:gap-16">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ember">
-            🔥 Early bird offer
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-ember">
+            <Flame className="h-4 w-4" aria-hidden /> Early bird offer
           </p>
           <h2 className="mt-4 font-display text-4xl leading-tight md:text-5xl">
             {formatINR(PRICING.mrp)} → {formatINR(PRICING.earlyBird)}
@@ -31,7 +32,7 @@ export function EarlyBirdBand() {
           <p className="mt-2 text-sm text-ember">You save {formatINR(savings())}</p>
           <Link
             href="/register"
-            className="mt-6 inline-block w-full rounded-full bg-ember px-8 py-4 text-center font-bold text-ink transition hover:bg-ember-deep"
+            className="mt-6 inline-block w-full rounded-full bg-ember px-8 py-4 text-center font-bold text-ink pressable transition-colors hover:bg-ember-deep"
           >
             PROCEED TO REGISTRATION
           </Link>

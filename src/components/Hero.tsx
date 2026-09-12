@@ -1,6 +1,22 @@
+import {
+  Bus,
+  Clock,
+  Flame,
+  GraduationCap,
+  Landmark,
+  Rocket,
+  type LucideIcon,
+} from "lucide-react";
 import { FlameMark } from "@/components/FlameMark";
 import { SkewButton } from "@/components/SkewButton";
 import { formatINR, PRICING, savings } from "@/lib/pricing";
+
+const BADGES: { icon: LucideIcon; label: string }[] = [
+  { icon: GraduationCap, label: "IIT Bombay Certificate" },
+  { icon: Landmark, label: "Campus Visit Opportunity*" },
+  { icon: Bus, label: "Free Travel — Top 30*" },
+  { icon: Rocket, label: "Illuminate Startup Kit" },
+];
 
 export function Hero() {
   return (
@@ -52,20 +68,22 @@ export function Hero() {
               Register
             </SkewButton>
           </div>
-          <ul className="mt-10 flex max-w-md flex-wrap gap-2 text-xs text-white/70" aria-label="Highlights">
-            {["🎓 IIT Bombay Certificate", "🏛️ Campus Visit*", "🚌 Free Travel Top-30*", "🚀 Startup Kit"].map(
-              (b) => (
-                <li key={b} className="rounded-full border border-ember/40 bg-ember/10 px-3 py-1.5">
-                  {b}
-                </li>
-              )
-            )}
+          <ul className="mt-10 flex max-w-md flex-wrap gap-2 text-xs text-white/75" aria-label="Highlights">
+            {BADGES.map((b) => (
+              <li
+                key={b.label}
+                className="flex items-center gap-2 rounded-full border border-ember/40 bg-ember/10 px-3 py-1.5"
+              >
+                <b.icon className="h-3.5 w-3.5 text-ember-soft" strokeWidth={2} aria-hidden />
+                {b.label}
+              </li>
+            ))}
           </ul>
         </div>
 
         <div className="rounded-3xl border border-ember/30 bg-ember/[0.07] p-8 text-center backdrop-blur-sm md:p-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ember-soft">
-            🔥 Early bird
+          <p className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-ember-soft">
+            <Flame className="h-4 w-4" aria-hidden /> Early bird
           </p>
           <p className="mt-3 flex items-baseline justify-center gap-3">
             <span className="text-lg text-white/45 line-through">{formatINR(PRICING.mrp)}</span>
@@ -74,7 +92,9 @@ export function Hero() {
             </span>
           </p>
           <p className="mt-2 text-sm text-ember-soft">Save {formatINR(savings())}</p>
-          <p className="mt-2 text-sm text-white/55">⏳ Valid till {PRICING.earlyBirdEndsAtIST}</p>
+          <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-white/55">
+            <Clock className="h-4 w-4" aria-hidden /> Valid till {PRICING.earlyBirdEndsAtIST}
+          </p>
           <div className="mt-7">
             <SkewButton href="/register" variant="violet">
               REGISTER NOW
