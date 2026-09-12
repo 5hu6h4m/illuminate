@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: var(--font-display), "Georgia", serif;
+  --font-body: var(--font-body), "Georgia", serif;
+  --color-ink: #0a0a0f;
+  --color-surface: #14141c;
+  --color-cream: #f5f1e6;
+  --color-muted: #a8a29e;
+  --color-ember: #ffc93c;
+  --color-ember-deep: #f5b301;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-cream);
+}
+
+/* Airy rhythm: generous sections, narrow measure, calm cards */
+.section {
+  padding-block: 6rem;
+}
+@media (min-width: 768px) {
+  .section {
+    padding-block: 8rem;
+  }
+}
+.measure {
+  max-width: 44rem;
+}
+::selection {
+  background: var(--color-ember);
+  color: #0a0a0f;
+}
