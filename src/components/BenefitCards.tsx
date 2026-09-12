@@ -10,29 +10,27 @@ const CARDS = [
 
 export function BenefitCards() {
   return (
-    <section id="benefits" className="section border-t border-white/8 bg-surface/40">
+    <section id="incentives" className="section border-t border-ember/15 bg-surface/60">
       <div className="mx-auto max-w-6xl px-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ember">What you get</p>
-        <h2 className="mt-4 max-w-2xl font-display text-3xl leading-tight md:text-5xl">
+        <p className="text-center text-xs font-semibold uppercase tracking-[0.28em] text-ember-soft">
+          Incentives
+        </p>
+        <h2 className="mx-auto mt-4 max-w-2xl text-center font-display text-3xl leading-tight md:text-5xl">
           One day. Everything you need to start up.
         </h2>
-        <p className="mt-4 measure leading-relaxed text-white/65">
-          Plenty of breathing room by design — seven calm cards, no clutter. Selection-based
-          perks are clearly marked.
-        </p>
         <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 md:gap-8">
           {CARDS.map((c) => (
             <article
               key={c.title}
-              className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 transition hover:border-ember/40"
+              className="rounded-3xl border border-ember/25 bg-ember/[0.05] p-8 transition hover:border-ember/60 hover:shadow-[0_0_35px_rgba(139,92,246,0.25)]"
             >
               <div className="text-3xl" aria-hidden>{c.icon}</div>
               <h3 className="mt-5 font-display text-xl tracking-wide">{c.title}</h3>
-              <p className="mt-3 leading-relaxed text-white/65">{c.text}</p>
+              <p className="mt-3 leading-relaxed text-white/60">{c.text}</p>
             </article>
           ))}
         </div>
-        <p className="mt-8 text-xs text-white/45">*Subject to applicable eligibility / selection criteria.</p>
+        <p className="mt-8 text-center text-xs text-white/40">*Subject to applicable eligibility / selection criteria.</p>
       </div>
     </section>
   );

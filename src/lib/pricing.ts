@@ -1,6 +1,6 @@
 export const PRICING = {
-  mrp: 999,
-  earlyBird: 699,
+  mrp: 699,
+  earlyBird: 599,
   currency: "₹",
   // IST deadline
   earlyBirdEndsAtIST: "20 September 2026, 11:59 PM IST",

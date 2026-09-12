@@ -1,70 +1,87 @@
-import Link from "next/link";
+import { FlameMark } from "@/components/FlameMark";
+import { SkewButton } from "@/components/SkewButton";
 import { formatINR, PRICING, savings } from "@/lib/pricing";
-
-const BADGES = [
-  { icon: "🎓", label: "IIT Bombay Certificate" },
-  { icon: "🏛️", label: "Campus Visit Opportunity*" },
-  { icon: "🚌", label: "Free Travel — Top 30*" },
-  { icon: "🚀", label: "Illuminate Startup Kit" },
-];
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden">
+    <section id="home" className="stars relative overflow-hidden bg-ink">
+      {/* violet aura, right side */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(60rem 30rem at 50% -10rem, rgba(255,201,60,0.16), transparent 60%), radial-gradient(40rem 24rem at 85% 20rem, rgba(255,201,60,0.08), transparent 60%)",
+            "radial-gradient(55rem 34rem at 78% 40%, rgba(139,92,246,0.28), transparent 62%), radial-gradient(30rem 20rem at 15% 80%, rgba(124,58,237,0.16), transparent 60%)",
         }}
       />
-      <div className="section relative mx-auto max-w-6xl px-6 text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ember">
-          E-Cell IIT Bombay × E-Cell MET
-        </p>
-        <h1 className="mx-auto mt-6 max-w-3xl font-display text-5xl leading-[1.05] tracking-wide md:text-7xl">
-          ILLUMINATE 2026
-        </h1>
-        <p className="mx-auto mt-5 text-lg text-white/75 md:text-xl">
-          6-Hour Interactive Entrepreneurship Workshop
-        </p>
-        <p className="mx-auto mt-3 measure text-base leading-relaxed text-muted">
-          Learn. Build. Network. Experience entrepreneurship — with speakers, activities and
-          exclusive startup content.
-        </p>
+      {/* stylised wing glow — original CSS art in the official spirit */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 top-1/2 hidden h-[34rem] w-[46rem] -translate-y-1/2 opacity-70 md:block"
+        style={{
+          background:
+            "conic-gradient(from 200deg at 50% 50%, transparent 0deg, rgba(139,92,246,0.5) 25deg, transparent 60deg, rgba(196,181,253,0.35) 95deg, transparent 130deg, rgba(124,58,237,0.45) 170deg, transparent 210deg, rgba(139,92,246,0.4) 250deg, transparent 290deg)",
+          filter: "blur(28px)",
+          maskImage: "radial-gradient(closest-side, black 30%, transparent 72%)",
+          WebkitMaskImage: "radial-gradient(closest-side, black 30%, transparent 72%)",
+        }}
+      />
+      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-6 pb-20 pt-32 md:pt-40 lg:grid-cols-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ember-soft">
+            E-Cell IIT Bombay × E-Cell MET
+          </p>
+          <div className="mt-6 flex items-center gap-4">
+            <FlameMark className="h-20 w-14 shrink-0 md:h-28 md:w-20" />
+            <p className="font-display text-6xl tracking-wide text-white md:text-8xl">
+              illuminate
+            </p>
+          </div>
+          <p className="mt-4 text-lg italic text-ember-soft md:text-xl">
+            Empowering the next generation of Changemakers
+          </p>
+          <p className="mt-4 max-w-md leading-relaxed text-white/65">
+            6-hour interactive entrepreneurship workshop at MET Bhujbal Knowledge City.
+            Learn. Build. Network.
+          </p>
+          <div className="mt-10 flex flex-wrap items-center gap-6">
+            <SkewButton href="/admin" variant="white">
+              Login
+            </SkewButton>
+            <SkewButton href="/register" variant="violet">
+              Register
+            </SkewButton>
+          </div>
+          <ul className="mt-10 flex max-w-md flex-wrap gap-2 text-xs text-white/70" aria-label="Highlights">
+            {["🎓 IIT Bombay Certificate", "🏛️ Campus Visit*", "🚌 Free Travel Top-30*", "🚀 Startup Kit"].map(
+              (b) => (
+                <li key={b} className="rounded-full border border-ember/40 bg-ember/10 px-3 py-1.5">
+                  {b}
+                </li>
+              )
+            )}
+          </ul>
+        </div>
 
-        <ul className="mx-auto mt-10 flex max-w-3xl flex-wrap items-center justify-center gap-3" aria-label="Highlights">
-          {BADGES.map((b) => (
-            <li
-              key={b.label}
-              className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-sm text-white/85"
-            >
-              <span aria-hidden className="mr-2">{b.icon}</span>
-              {b.label}
-            </li>
-          ))}
-        </ul>
-
-        <div className="mx-auto mt-10 max-w-xl rounded-3xl border border-ember/30 bg-ember/[0.07] p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ember">
+        <div className="rounded-3xl border border-ember/30 bg-ember/[0.07] p-8 text-center backdrop-blur-sm md:p-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ember-soft">
             🔥 Early bird
           </p>
           <p className="mt-3 flex items-baseline justify-center gap-3">
-            <span className="text-lg text-white/50 line-through">{formatINR(PRICING.mrp)}</span>
-            <span className="font-display text-5xl text-cream">{formatINR(PRICING.earlyBird)}</span>
+            <span className="text-lg text-white/45 line-through">{formatINR(PRICING.mrp)}</span>
+            <span className="font-display text-5xl text-white md:text-6xl">
+              {formatINR(PRICING.earlyBird)}
+            </span>
           </p>
-          <p className="mt-2 text-sm text-ember">Save {formatINR(savings())}</p>
-          <p className="mt-2 text-sm text-white/60">⏳ Valid till {PRICING.earlyBirdEndsAtIST}</p>
-          <Link
-            href="/register"
-            className="mt-6 inline-block w-full rounded-full bg-ember px-8 py-4 text-base font-bold text-ink transition hover:bg-ember-deep sm:w-auto"
-          >
-            REGISTER NOW
-          </Link>
-          <p className="mt-4 text-xs leading-relaxed text-white/50">
-            *Campus visit and travel benefits are subject to applicable selection / eligibility
-            criteria.
+          <p className="mt-2 text-sm text-ember-soft">Save {formatINR(savings())}</p>
+          <p className="mt-2 text-sm text-white/55">⏳ Valid till {PRICING.earlyBirdEndsAtIST}</p>
+          <div className="mt-7">
+            <SkewButton href="/register" variant="violet">
+              REGISTER NOW
+            </SkewButton>
+          </div>
+          <p className="mt-5 text-xs leading-relaxed text-white/45">
+            *Campus visit and travel benefits subject to selection / eligibility criteria.
           </p>
         </div>
       </div>

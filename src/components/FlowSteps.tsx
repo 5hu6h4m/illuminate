@@ -5,7 +5,7 @@ const STEPS = [
   { n: "02", t: "Academic details", d: "MET college locked · PRN verifies enrollment." },
   { n: "03", t: "Entrepreneurship profile", d: "Interests, ideas and past event experience." },
   { n: "04", t: "Campus visit / travel", d: "Interest, willingness and emergency contact." },
-  { n: "05", t: "Payment ₹699", d: "Gateway or manual UPI → instant Registration ID." },
+  { n: "05", t: "Payment ₹599", d: "Gateway or manual UPI → instant Registration ID." },
 ];
 
 export function FlowSteps() {

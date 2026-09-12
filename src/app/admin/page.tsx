@@ -19,7 +19,7 @@ const SEED: Registration[] = [
     interests: ["Startups", "Technology"], hasIdea: "I'm exploring ideas",
     attendedStartupEvent: "No", attendedEcell: "No", campusVisit: "Yes",
     willingToTravel: "Yes", emergencyName: "Guardian", emergencyPhone: "9876543211",
-    amountPaid: 699, paymentStatus: "paid", paymentId: "pay_demo1",
+    amountPaid: 599, paymentStatus: "paid", paymentId: "pay_demo1",
     createdAt: new Date().toISOString(),
   },
 ];

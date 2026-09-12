@@ -230,7 +230,7 @@ export function MultiStepForm() {
             </div>
             <div className="md:col-span-2">
               <label className="flex cursor-pointer items-center gap-3 text-sm text-white/75">
-                <input type="checkbox" className="h-4 w-4 accent-[#ffc93c]" checked={d.sameAsMobile}
+                <input type="checkbox" className="h-4 w-4 accent-[#8b5cf6]" checked={d.sameAsMobile}
                   onChange={(e) => set("sameAsMobile", e.target.checked)} />
                 Same as mobile number (WhatsApp)
               </label>
@@ -402,13 +402,13 @@ export function MultiStepForm() {
                 ] as const
               ).map(([k, label]) => (
                 <label key={k} className="flex cursor-pointer items-start gap-3 text-sm text-white/75">
-                  <input type="checkbox" className="mt-1 h-4 w-4 accent-[#ffc93c]"
+                  <input type="checkbox" className="mt-1 h-4 w-4 accent-[#8b5cf6]"
                     checked={d[k]} onChange={(e) => set(k, e.target.checked)} />
                   {label}
                 </label>
               ))}
               <label className="flex cursor-pointer items-start gap-3 text-sm text-white/60">
-                <input type="checkbox" className="mt-1 h-4 w-4 accent-[#ffc93c]"
+                <input type="checkbox" className="mt-1 h-4 w-4 accent-[#8b5cf6]"
                   checked={d.consentMarketing} onChange={(e) => set("consentMarketing", e.target.checked)} />
                 I&apos;d like future E-Cell MET event updates. (optional)
               </label>
