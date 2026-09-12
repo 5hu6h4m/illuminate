@@ -41,7 +41,7 @@ export function Hero() {
             Empowering the next generation of Changemakers
           </p>
           <p className="mt-4 max-w-md leading-relaxed text-white/65">
-            6-hour interactive entrepreneurship workshop at MET Bhujbal Knowledge City.
+            6-hour offline, interactive entrepreneurship workshop at MET Bhujbal Knowledge City.
             Learn. Build. Network.
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-6">
