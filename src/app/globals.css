@@ -119,6 +119,37 @@ body {
   transition-delay: var(--reveal-delay, 0ms);
 }
 
+/* Scroll flip entrance (incentive cards) — rotateY + fade, ease-out, staggered */
+.flip-reveal {
+  opacity: 0;
+  transform: perspective(1000px) rotateY(-22deg) translateY(16px);
+}
+.flip-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+  transition: opacity 500ms var(--ease-out), transform 600ms var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+/* Chamfered corner frame (reference-style cut corners, violet edge) */
+.clip-chamfer {
+  clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
+}
+.clip-chamfer-inner {
+  clip-path: polygon(19px 0, 100% 0, 100% calc(100% - 19px), calc(100% - 19px) 100%, 0 100%, 0 19px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-reveal {
+    opacity: 0;
+    transform: none;
+  }
+  .flip-reveal.is-visible {
+    transition: opacity 200ms var(--ease-out);
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+}
+
 /* Form step change — quick fade/slide, never blocks input */
 .step-enter {
   animation: step-in 220ms var(--ease-out);

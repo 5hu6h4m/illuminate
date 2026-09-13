@@ -188,8 +188,9 @@ export function BenefitCards() {
         {/* ---- grid — equal heights, aligned visuals ---- */}
         <div className="mt-8 grid grid-cols-1 items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-3 md:gap-8">
           {CARDS.map((c, i) => (
-            <Reveal key={c.slug} delay={(i % 3) * 70} className="h-full">
-              <article className="lift flex h-full flex-col overflow-hidden rounded-3xl border border-ember/25 bg-[#100b22]/90 hover:border-ember/60 hover:shadow-[0_0_35px_rgba(139,92,246,0.25)]">
+            <Reveal key={c.slug} flip delay={(i % 3) * 70} className="h-full">
+              <div className="clip-chamfer h-full bg-ember/40 p-px transition-[filter] duration-200 hover:drop-shadow-[0_0_28px_rgba(139,92,246,0.45)]">
+              <article className="clip-chamfer-inner flex h-full flex-col overflow-hidden bg-[#0d0a18]">
                 <div className="relative">
                   <CardVisual card={c} />
                   <span className="absolute left-5 top-4 rounded-full border border-white/15 bg-black/55 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-ember-soft backdrop-blur-sm">
@@ -204,6 +205,7 @@ export function BenefitCards() {
                   <p className="mt-2 flex-1 text-[0.95rem] leading-relaxed text-white/60">{c.text}</p>
                 </div>
               </article>
+              </div>
             </Reveal>
           ))}
         </div>

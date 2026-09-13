@@ -7,10 +7,12 @@ type Props = {
   delay?: number;
   className?: string;
   as?: "div" | "li" | "article";
+  /** flip entrance (rotateY) instead of the default rise — for card grids */
+  flip?: boolean;
 };
 
 /** Once-only staggered scroll reveal. Decorative — content is visible without JS-motion. */
-export function Reveal({ children, delay = 0, className = "", as = "div" }: Props) {
+export function Reveal({ children, delay = 0, className = "", as = "div", flip = false }: Props) {
   const ref = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -41,7 +43,7 @@ export function Reveal({ children, delay = 0, className = "", as = "div" }: Prop
       ref: (el: HTMLElement | null) => {
         ref.current = el;
       },
-      className: `reveal ${className}`,
+      className: `reveal${flip ? " flip-reveal" : ""} ${className}`,
       style: { "--reveal-delay": `${delay}ms` } as CSSProperties,
     },
     children

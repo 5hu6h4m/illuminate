@@ -5,7 +5,6 @@ import {
   Rocket,
   type LucideIcon,
 } from "lucide-react";
-import { FlameMark } from "@/components/FlameMark";
 import { SkewButton } from "@/components/SkewButton";
 
 const BADGES: { icon: LucideIcon; label: string }[] = [
@@ -26,22 +25,6 @@ export function Hero() {
         style={{
           background:
             "radial-gradient(55rem 34rem at 78% 40%, rgba(139,92,246,0.22), transparent 62%), radial-gradient(30rem 20rem at 15% 80%, rgba(124,58,237,0.12), transparent 60%)",
-        }}
-      />
-      {/* hero artwork — right-side showcase (like the reference):
-          small peek on mobile, full showcase on desktop, left edge blended */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/images/herobg.png"
-        alt=""
-        aria-hidden
-        fetchPriority="high"
-        className="pointer-events-none absolute -right-20 top-20 w-72 object-contain opacity-50 md:right-[-7rem] md:top-1/2 md:w-[46rem] md:-translate-y-1/2 md:opacity-90 lg:right-[-4rem] lg:w-[56rem]"
-        style={{
-          maskImage:
-            "linear-gradient(to right, transparent 0%, black 25%)",
-          WebkitMaskImage:
-            "linear-gradient(to right, transparent 0%, black 25%)",
         }}
       />
       {/* gentle bottom fade into the next section */}
@@ -72,16 +55,15 @@ export function Hero() {
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ember-soft">
             E-Cell IIT Bombay × E-Cell MET
           </p>
-          <div className="mt-6 flex items-center gap-4">
-            <FlameMark className="h-20 w-14 shrink-0 md:h-28 md:w-20" />
-            <p className="font-display text-6xl tracking-wide text-white md:text-8xl">
-              illuminate
-            </p>
-          </div>
-          <p className="mt-4 text-lg italic text-ember-soft md:text-xl">
-            Empowering the next generation of Changemakers
-          </p>
-          <p className="mt-4 max-w-md leading-relaxed text-white/65">
+          {/* official illuminate wordmark — foreground, above all backdrop layers */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/logo2.png"
+            alt="illuminate — Empowering the next generation of Changemakers"
+            fetchPriority="high"
+            className="relative z-[3] mt-6 w-full max-w-md drop-shadow-[0_0_35px_rgba(139,92,246,0.35)] md:max-w-xl"
+          />
+          <p className="mt-6 max-w-md leading-relaxed text-white/65">
             6-hour offline, interactive entrepreneurship workshop at MET Bhujbal Knowledge City.
             Learn. Build. Network.
           </p>
