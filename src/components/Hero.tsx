@@ -27,6 +27,21 @@ export function Hero() {
             "radial-gradient(55rem 34rem at 78% 40%, rgba(139,92,246,0.22), transparent 62%), radial-gradient(30rem 20rem at 15% 80%, rgba(124,58,237,0.12), transparent 60%)",
         }}
       />
+      {/* flame artwork — right-side showcase behind content (like the reference) */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/images/herobg.png"
+        alt=""
+        aria-hidden
+        fetchPriority="high"
+        className="pointer-events-none absolute -right-16 top-24 w-64 object-contain opacity-50 md:right-[-7rem] md:top-1/2 md:w-[48rem] md:-translate-y-1/2 md:opacity-95 lg:right-[-4rem] lg:w-[58rem]"
+        style={{
+          maskImage:
+            "linear-gradient(to right, transparent 0%, black 28%)",
+          WebkitMaskImage:
+            "linear-gradient(to right, transparent 0%, black 28%)",
+        }}
+      />
       {/* gentle bottom fade into the next section */}
       <div
         aria-hidden
