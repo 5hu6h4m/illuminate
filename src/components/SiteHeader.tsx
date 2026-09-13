@@ -13,8 +13,13 @@ export function SiteHeader() {
   return (
     <header className="absolute inset-x-0 top-0 z-40">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-5">
-        <Link href="/#home" className="flex items-center gap-3" aria-label="Illuminate home">
-          <span className="flex h-11 w-11 flex-col items-center justify-center leading-none">
+        <Link href="/#home" className="relative flex items-center gap-3" aria-label="Illuminate home">
+          {/* subtle purple glow behind the E-Cell MET mark — logo itself untouched */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -inset-3 rounded-full bg-ember/25 blur-xl"
+          />
+          <span className="relative flex h-11 w-11 flex-col items-center justify-center leading-none">
             <span className="font-display text-3xl text-white">E</span>
             <span className="text-[0.55rem] font-semibold uppercase tracking-[0.18em] text-ember-soft">
               e-cell

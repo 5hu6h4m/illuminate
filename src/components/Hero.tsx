@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { FlameMark } from "@/components/FlameMark";
 import { SkewButton } from "@/components/SkewButton";
+import { EnergyTrails } from "@/components/EnergyTrails";
 import { formatINR, PRICING, savings } from "@/lib/pricing";
 
 const BADGES: { icon: LucideIcon; label: string }[] = [
@@ -20,29 +21,35 @@ const BADGES: { icon: LucideIcon; label: string }[] = [
 
 export function Hero() {
   return (
-    <section id="home" className="stars relative overflow-hidden bg-ink">
-      {/* violet aura, right side */}
+    <section id="home" className="relative flex min-h-svh items-center overflow-hidden">
+      {/* transparent base so the fixed AmbientBackdrop shows through; fills one viewport */}
+      {/* violet aura, right side — supports the trails, never covers text */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(55rem 34rem at 78% 40%, rgba(139,92,246,0.28), transparent 62%), radial-gradient(30rem 20rem at 15% 80%, rgba(124,58,237,0.16), transparent 60%)",
+            "radial-gradient(55rem 34rem at 78% 40%, rgba(139,92,246,0.22), transparent 62%), radial-gradient(30rem 20rem at 15% 80%, rgba(124,58,237,0.12), transparent 60%)",
         }}
       />
-      {/* stylised wing glow — original CSS art in the official spirit */}
-      <div
+      {/* official particles reference as faint ambient texture — masked so only
+          dots/wing glow show (baked buttons cropped out), canvas stays the live layer */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/images/illuminate_background_particles_reference.png"
+        alt=""
         aria-hidden
-        className="pointer-events-none absolute -right-24 top-1/2 hidden h-[34rem] w-[46rem] -translate-y-1/2 opacity-70 md:block"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right-bottom opacity-40"
         style={{
-          background:
-            "conic-gradient(from 200deg at 50% 50%, transparent 0deg, rgba(139,92,246,0.5) 25deg, transparent 60deg, rgba(196,181,253,0.35) 95deg, transparent 130deg, rgba(124,58,237,0.45) 170deg, transparent 210deg, rgba(139,92,246,0.4) 250deg, transparent 290deg)",
-          filter: "blur(28px)",
-          maskImage: "radial-gradient(closest-side, black 30%, transparent 72%)",
-          WebkitMaskImage: "radial-gradient(closest-side, black 30%, transparent 72%)",
+          maskImage:
+            "radial-gradient(110% 95% at 85% 85%, black 30%, transparent 72%)",
+          WebkitMaskImage:
+            "radial-gradient(110% 95% at 85% 85%, black 30%, transparent 72%)",
         }}
       />
-      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-6 pb-20 pt-32 md:pt-40 lg:grid-cols-2">
+      {/* flowing energy trails — right side only, masked off the text column */}
+      <EnergyTrails className="right-[-8rem] top-0 hidden h-full w-[46rem] opacity-90 md:block lg:right-[-4rem] lg:w-[54rem]" />
+      <div className="relative z-[2] mx-auto grid w-full max-w-7xl items-center gap-12 px-6 pb-20 pt-32 md:pt-40 lg:grid-cols-2">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ember-soft">
             E-Cell IIT Bombay × E-Cell MET

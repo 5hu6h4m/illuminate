@@ -1,5 +1,6 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { SocialRail } from "@/components/SocialRail";
+import { AmbientBackdrop } from "@/components/AmbientBackdrop";
 import { Hero } from "@/components/Hero";
 import { AboutSection, StructureSection, GuidelinesSection } from "@/components/OfficialSections";
 import { BenefitCards } from "@/components/BenefitCards";
@@ -10,18 +11,23 @@ import { SiteFooter } from "@/components/SiteFooter";
 export default function Home() {
   return (
     <>
-      <SiteHeader />
+      {/* fixed particle backdrop — z-0, behind everything, never intercepts input */}
+      <AmbientBackdrop />
+      {/* content layer above the backdrop */}
+      <div className="relative z-10">
+        <SiteHeader />
+        <main>
+          <Hero />
+          <AboutSection />
+          <StructureSection />
+          <GuidelinesSection />
+          <BenefitCards />
+          <EarlyBirdBand />
+          <FlowSteps />
+        </main>
+        <SiteFooter />
+      </div>
       <SocialRail />
-      <main>
-        <Hero />
-        <AboutSection />
-        <StructureSection />
-        <GuidelinesSection />
-        <BenefitCards />
-        <EarlyBirdBand />
-        <FlowSteps />
-      </main>
-      <SiteFooter />
     </>
   );
 }

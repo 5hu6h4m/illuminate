@@ -21,22 +21,29 @@ const SOCIALS = [
   },
 ];
 
-/** Fixed right-edge social rail, like the official site. */
+/* NOTE: hrefs reuse the project's existing official URL — no invented links. */
+const RAIL_HREF = "https://www.ecell.in/illuminate/";
+
+/**
+ * Floating social rail — glass pill.
+ * Desktop/tablet: fixed vertical bar, right-center.
+ * Mobile: compact horizontal floating pill, bottom-center.
+ */
 export function SocialRail() {
   return (
     <aside
       aria-label="Social links"
-      className="fixed right-0 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-1 rounded-l-2xl bg-ember/90 p-2 sm:flex"
+      className="fixed z-40 flex gap-1 rounded-full border border-ember/30 bg-abyss/70 p-1.5 shadow-[0_0_28px_rgba(139,92,246,0.35)] backdrop-blur-md max-sm:bottom-4 max-sm:left-1/2 max-sm:-translate-x-1/2 max-sm:flex-row sm:right-3 sm:top-1/2 sm:-translate-y-1/2 sm:flex-col sm:rounded-2xl sm:p-2"
     >
       {SOCIALS.map((s) => (
         <a
           key={s.label}
-          href="https://www.ecell.in/illuminate/"
+          href={RAIL_HREF}
           target="_blank"
           rel="noreferrer"
           aria-label={s.label}
           title={s.label}
-          className="rounded-xl p-2 text-white pressable transition-colors hover:bg-white/20"
+          className="social-link rounded-full p-2.5 text-ember-soft hover:bg-ember/25 hover:text-white sm:rounded-xl sm:p-2"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
             <path d={s.path} />
