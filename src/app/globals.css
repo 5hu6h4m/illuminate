@@ -218,6 +218,45 @@ body {
   }
 }
 
+/* Impact globe — orbit ring + radar scan (transform/opacity only, GPU-cheap) */
+.globe-orbit {
+  animation: globe-orbit 36s linear infinite;
+}
+@keyframes globe-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.globe-scan {
+  animation: globe-scan 6s linear infinite;
+}
+@keyframes globe-scan {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.globe-glow {
+  animation: globe-glow 4.5s ease-in-out infinite alternate;
+}
+@keyframes globe-glow {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .globe-orbit,
+  .globe-scan {
+    animation: none;
+  }
+  .globe-glow {
+    animation: none;
+    opacity: 0.8;
+  }
+}
+
 /* 3D structure cube */
 .cube-scene {
   perspective: 1200px;

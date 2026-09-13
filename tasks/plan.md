@@ -24,13 +24,16 @@ Airy Next.js site mirroring ecell.in/illuminate dark theme. Vertical slices: fou
 - [ ] 360/768/1440 airy, keyboard OK
 
 ### Phase 3: Registration + payment + success
-- [ ] 4-step form + payment placeholder + success + .ics
+- [x] 4-step form + payment placeholder + success + .ics
+(MongoDB Atlas live, Reg ID `ILL-MET-2026-XXXXX` server-issued, verified e2e)
 
 ### Phase 4: Admin + export
-- [ ] Admin metrics + table + CSV export
+- [x] Admin metrics + table + CSV export
+(Passcode-only gate `ECELL2026ERA`, no email; server-verified + rate-limited, verified e2e)
 
 ### Checkpoint: Complete
-- [ ] `npm run build` clean, pushed to GitHub main
+- [x] `npm run build` clean
+- [ ] pushed to GitHub main
 
 ## Risks and Mitigations
 | Risk | Impact | Mitigation |

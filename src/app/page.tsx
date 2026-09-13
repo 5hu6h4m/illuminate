@@ -3,6 +3,7 @@ import { SocialRail } from "@/components/SocialRail";
 import { AmbientBackdrop } from "@/components/AmbientBackdrop";
 import { Hero } from "@/components/Hero";
 import { AboutSection, StructureSection, GuidelinesSection } from "@/components/OfficialSections";
+import { ImpactSection } from "@/components/ImpactSection";
 import { BenefitCards } from "@/components/BenefitCards";
 import { EarlyBirdBand } from "@/components/EarlyBirdBand";
 import { FlowSteps } from "@/components/FlowSteps";
@@ -19,6 +20,7 @@ export default function Home() {
         <main>
           <Hero />
           <AboutSection />
+          <ImpactSection />
           <StructureSection />
           <GuidelinesSection />
           <BenefitCards />

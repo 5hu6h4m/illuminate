@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { FlameMark } from "@/components/FlameMark";
 import { SkewButton } from "@/components/SkewButton";
-import { EnergyTrails } from "@/components/EnergyTrails";
 import { formatINR, PRICING, savings } from "@/lib/pricing";
 
 const BADGES: { icon: LucideIcon; label: string }[] = [
@@ -32,8 +31,32 @@ export function Hero() {
             "radial-gradient(55rem 34rem at 78% 40%, rgba(139,92,246,0.22), transparent 62%), radial-gradient(30rem 20rem at 15% 80%, rgba(124,58,237,0.12), transparent 60%)",
         }}
       />
-      {/* official particles reference as faint ambient texture — masked so only
-          dots/wing glow show (baked buttons cropped out), canvas stays the live layer */}
+      {/* hero artwork — right-side showcase (like the reference):
+          small peek on mobile, full showcase on desktop, left edge blended */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/images/herobg.png"
+        alt=""
+        aria-hidden
+        fetchPriority="high"
+        className="pointer-events-none absolute -right-20 top-20 w-72 object-contain opacity-50 md:right-[-5rem] md:top-1/2 md:w-[44rem] md:-translate-y-1/2 md:opacity-90 lg:right-[-2rem] lg:w-[52rem]"
+        style={{
+          maskImage:
+            "linear-gradient(to right, transparent 0%, black 25%)",
+          WebkitMaskImage:
+            "linear-gradient(to right, transparent 0%, black 25%)",
+        }}
+      />
+      {/* gentle bottom fade into the next section */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(to bottom, transparent 72%, rgba(5,5,5,0.85) 100%)",
+        }}
+      />
+      {/* official particles reference as faint ambient texture (masked), canvas stays the live layer */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/images/illuminate_background_particles_reference.png"
@@ -47,8 +70,6 @@ export function Hero() {
             "radial-gradient(110% 95% at 85% 85%, black 30%, transparent 72%)",
         }}
       />
-      {/* flowing energy trails — right side only, masked off the text column */}
-      <EnergyTrails className="right-[-8rem] top-0 hidden h-full w-[46rem] opacity-90 md:block lg:right-[-4rem] lg:w-[54rem]" />
       <div className="relative z-[2] mx-auto grid w-full max-w-7xl items-center gap-12 px-6 pb-20 pt-32 md:pt-40 lg:grid-cols-2">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ember-soft">
