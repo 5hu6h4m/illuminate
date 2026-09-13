@@ -1,7 +1,5 @@
 import {
   Bus,
-  Clock,
-  Flame,
   GraduationCap,
   Landmark,
   Rocket,
@@ -9,7 +7,6 @@ import {
 } from "lucide-react";
 import { FlameMark } from "@/components/FlameMark";
 import { SkewButton } from "@/components/SkewButton";
-import { formatINR, PRICING, savings } from "@/lib/pricing";
 
 const BADGES: { icon: LucideIcon; label: string }[] = [
   { icon: GraduationCap, label: "IIT Bombay Certificate" },
@@ -39,7 +36,7 @@ export function Hero() {
         alt=""
         aria-hidden
         fetchPriority="high"
-        className="pointer-events-none absolute -right-20 top-20 w-72 object-contain opacity-50 md:right-[-5rem] md:top-1/2 md:w-[44rem] md:-translate-y-1/2 md:opacity-90 lg:right-[-2rem] lg:w-[52rem]"
+        className="pointer-events-none absolute -right-20 top-20 w-72 object-contain opacity-50 md:right-[-7rem] md:top-1/2 md:w-[46rem] md:-translate-y-1/2 md:opacity-90 lg:right-[-4rem] lg:w-[56rem]"
         style={{
           maskImage:
             "linear-gradient(to right, transparent 0%, black 25%)",
@@ -70,8 +67,8 @@ export function Hero() {
             "radial-gradient(110% 95% at 85% 85%, black 30%, transparent 72%)",
         }}
       />
-      <div className="relative z-[2] mx-auto grid w-full max-w-7xl items-center gap-12 px-6 pb-20 pt-32 md:pt-40 lg:grid-cols-2">
-        <div>
+      <div className="relative z-[2] mx-auto w-full max-w-7xl px-6 pb-20 pt-32 md:pt-40">
+        <div className="max-w-2xl">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ember-soft">
             E-Cell IIT Bombay × E-Cell MET
           </p>
@@ -107,30 +104,6 @@ export function Hero() {
               </li>
             ))}
           </ul>
-        </div>
-
-        <div className="rounded-3xl border border-ember/30 bg-ember/[0.07] p-8 text-center backdrop-blur-sm md:p-10">
-          <p className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-ember-soft">
-            <Flame className="h-4 w-4" aria-hidden /> Early bird
-          </p>
-          <p className="mt-3 flex items-baseline justify-center gap-3">
-            <span className="text-lg text-white/45 line-through">{formatINR(PRICING.mrp)}</span>
-            <span className="font-display text-5xl text-white md:text-6xl">
-              {formatINR(PRICING.earlyBird)}
-            </span>
-          </p>
-          <p className="mt-2 text-sm text-ember-soft">Save {formatINR(savings())}</p>
-          <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-white/55">
-            <Clock className="h-4 w-4" aria-hidden /> Valid till {PRICING.earlyBirdEndsAtIST}
-          </p>
-          <div className="mt-7">
-            <SkewButton href="/register" variant="violet">
-              REGISTER NOW
-            </SkewButton>
-          </div>
-          <p className="mt-5 text-xs leading-relaxed text-white/45">
-            *Campus visit and travel benefits subject to selection / eligibility criteria.
-          </p>
         </div>
       </div>
     </section>
