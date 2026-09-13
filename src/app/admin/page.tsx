@@ -29,26 +29,68 @@ export default function AdminPage() {
   const [rows, setRows] = useState<Registration[]>([]);
   const [authed, setAuthed] = useState(false);
   const [pin, setPin] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
+
+  async function fetchRows(key: string): Promise<Registration[] | null> {
+    const res = await fetch("/api/registrations", {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    if (res.status === 401) throw new Error("wrong");
+    if (res.status === 429) throw new Error("locked");
+    if (!res.ok) return null; // API unavailable → local fallback
+    const json = await res.json().catch(() => null);
+    return Array.isArray(json?.data) ? (json.data as Registration[]) : null;
+  }
+
+  async function unlock(key: string) {
+    const trimmed = key.trim();
+    if (!trimmed) {
+      setAuthError("Enter the admin passcode.");
+      return;
+    }
+    setUnlocking(true);
+    setAuthError("");
+    try {
+      const data = await fetchRows(trimmed);
+      if (data && data.length) {
+        setRows(data);
+      } else if (data === null) {
+        const local = loadRegistrations();
+        setRows(local.length ? local : SEED);
+      } else {
+        setRows([]);
+      }
+      sessionStorage.setItem("illuminate-admin", trimmed);
+      setPin(trimmed);
+      setAuthed(true);
+    } catch (e) {
+      setAuthError(
+        e instanceof Error && e.message === "locked"
+          ? "Too many wrong attempts. Try again in 15 minutes."
+          : "Wrong passcode. Try again.",
+      );
+    } finally {
+      setUnlocking(false);
+    }
+  }
+
+  // Resume session on reload (session-only, cleared when the tab closes).
+  useEffect(() => {
+    const saved = sessionStorage.getItem("illuminate-admin");
+    if (saved) void unlock(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!authed) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/registrations?key=${encodeURIComponent(pin)}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (!cancelled && Array.isArray(json?.data) && json.data.length) {
-            setRows(json.data as Registration[]);
-            return;
-          }
-        }
+        const data = await fetchRows(pin);
+        if (!cancelled && data) setRows(data);
       } catch {
-        /* API unavailable → local fallback below */
-      }
-      if (!cancelled) {
-        const local = loadRegistrations();
-        setRows(local.length ? local : SEED);
+        /* wrong/expired key mid-session → keep current rows */
       }
     })();
     return () => {
@@ -78,17 +120,27 @@ export default function AdminPage() {
         <SiteHeader />
         <main className="mx-auto max-w-md px-6 py-24 text-center">
           <h1 className="font-display text-3xl">Admin panel</h1>
-          <p className="mt-2 text-sm text-white/55">Demo gate — enter <code>met2026</code>. Replace with real auth before launch.</p>
-          <input
-            className="mt-6 w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-center"
-            placeholder="Admin passcode" type="password" value={pin} onChange={(e) => setPin(e.target.value)}
-          />
-          <button
-            onClick={() => (pin === "met2026" ? setAuthed(true) : alert("Wrong passcode (hint: met2026)"))}
-            className="pressable mt-4 w-full rounded-full bg-ember px-6 py-3 font-bold text-white transition-colors hover:bg-ember-deep"
+          <p className="mt-2 text-sm text-white/55">Passcode only — no email needed. Enter the admin passcode to unlock.</p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void unlock(pin);
+            }}
           >
-            Unlock dashboard
-          </button>
+            <input
+              className="mt-6 w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-center"
+              placeholder="Admin passcode" type="password" value={pin} onChange={(e) => setPin(e.target.value)}
+              autoComplete="off"
+            />
+            {authError && <p className="mt-3 text-sm text-red-300">{authError}</p>}
+            <button
+              type="submit"
+              disabled={unlocking}
+              className="pressable mt-4 w-full rounded-full bg-ember px-6 py-3 font-bold text-white transition-colors hover:bg-ember-deep disabled:opacity-60"
+            >
+              {unlocking ? "Checking…" : "Unlock dashboard"}
+            </button>
+          </form>
           <p className="mt-4 text-xs text-white/40"><Link href="/" className="underline">← Back home</Link></p>
         </main>
         <SiteFooter />
@@ -105,12 +157,25 @@ export default function AdminPage() {
             <h1 className="font-display text-4xl">Overview</h1>
             <p className="mt-2 text-sm text-white/55">Live from MongoDB when configured, otherwise this browser (demo store).</p>
           </div>
+          <div className="flex gap-3">
           <button
             onClick={() => downloadCSV("illuminate-participants.csv", toCSV(rows))}
             className="pressable rounded-full bg-ember px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-ember-deep"
           >
             EXPORT PARTICIPANTS (CSV)
           </button>
+          <button
+            onClick={() => {
+              sessionStorage.removeItem("illuminate-admin");
+              setAuthed(false);
+              setPin("");
+              setRows([]);
+            }}
+            className="pressable rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/70 transition-colors hover:border-white/40"
+          >
+            Lock
+          </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-5 md:gap-6">

@@ -7,6 +7,38 @@ type ApiError = {
   error: { code: string; message: string; details?: unknown };
 };
 
+// --- Minimal brute-force guard for the passcode-only admin gate ---
+// NOTE: in-memory only (resets on redeploy / per serverless instance).
+// Behind multiple instances use a shared store (e.g. Upstash) instead.
+const ADMIN_FAILS = new Map<string, { count: number; resetAt: number }>();
+const ADMIN_MAX_FAILS = 10;
+const ADMIN_WINDOW_MS = 15 * 60 * 1000;
+
+function adminRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = ADMIN_FAILS.get(ip);
+  if (!entry) return false;
+  if (now > entry.resetAt) {
+    ADMIN_FAILS.delete(ip);
+    return false;
+  }
+  return entry.count >= ADMIN_MAX_FAILS;
+}
+
+function recordAdminFail(ip: string): void {
+  const now = Date.now();
+  const entry = ADMIN_FAILS.get(ip);
+  if (!entry || now > entry.resetAt) {
+    ADMIN_FAILS.set(ip, { count: 1, resetAt: now + ADMIN_WINDOW_MS });
+  } else {
+    entry.count += 1;
+  }
+}
+
+function clearAdminFails(ip: string): void {
+  ADMIN_FAILS.delete(ip);
+}
+
 const err = (status: number, code: string, message: string, details?: unknown) =>
   NextResponse.json<ApiError>({ error: { code, message, details } }, { status });
 
@@ -73,14 +105,17 @@ export async function POST(req: Request) {
 }
 
 // GET /api/registrations?id=ILL-... → single record (for success page)
-// GET /api/registrations?key=ADMIN_PASSCODE → full list (for admin)
+// GET /api/registrations → full list, passcode-only admin gate (no email)
 export async function GET(req: Request) {
   if (!isDbConfigured()) {
     return err(503, "DB_NOT_CONFIGURED", "Database is not configured. Set MONGODB_URI.");
   }
   const url = new URL(req.url);
   const id = url.searchParams.get("id");
-  const key = url.searchParams.get("key");
+  // Passcode-only gate (no email): dashboard sends it as ?key= or
+  // `Authorization: Bearer <passcode>`. Never log the received value.
+  const headerKey = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  const key = url.searchParams.get("key") ?? headerKey;
 
   try {
     const col = await getRegistrationsCollection();
@@ -91,10 +126,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ data: sanitize(found) });
     }
 
-    const expected = process.env.ADMIN_PASSCODE ?? "met2026";
-    if (key !== expected) {
-      return err(401, "UNAUTHORIZED", "Valid admin key required.");
+    const expected = process.env.ADMIN_PASSCODE;
+    if (!expected) {
+      return err(503, "ADMIN_NOT_CONFIGURED", "Admin access is not configured on the server.");
     }
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (adminRateLimited(ip)) {
+      return err(429, "RATE_LIMITED", "Too many attempts. Try again in 15 minutes.");
+    }
+    if (!key || key !== expected) {
+      recordAdminFail(ip);
+      return err(401, "UNAUTHORIZED", "Wrong passcode.");
+    }
+    clearAdminFails(ip);
     const rows = await col.find({}).sort({ _id: -1 }).limit(2000).toArray();
     return NextResponse.json({
       data: rows.map(sanitize),
