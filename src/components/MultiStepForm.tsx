@@ -41,6 +41,7 @@ type Draft = {
   emergencyPhone: string;
   accessibility: string;
   utr: string;
+  paymentScreenshot: string;
   consentAccuracy: boolean;
   consentComms: boolean;
   consentSelection: boolean;
@@ -70,6 +71,7 @@ const EMPTY: Draft = {
   emergencyPhone: "",
   accessibility: "",
   utr: "",
+  paymentScreenshot: "",
   consentAccuracy: false,
   consentComms: false,
   consentSelection: false,
@@ -79,8 +81,11 @@ const EMPTY: Draft = {
 
 const STEPS = ["Personal", "Academic", "Profile", "Travel", "Payment"];
 
+// TODO: apna real UPI ID yahan daal — yehi QR/payment pe dikhega
+const UPI_ID = "illuminate.ecell@upi";
+
 const inputCls =
-  "w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-cream placeholder:text-white/30 outline-none focus:border-ember/60";
+  "w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-cream placeholder:text-white/30 outline-none focus:border-ember/60 [color-scheme:dark] [&>option]:text-black";
 const labelCls = "mb-2 block text-sm font-medium text-white/80";
 const errCls = "mt-1 text-xs text-red-300";
 
@@ -89,7 +94,9 @@ export function MultiStepForm() {
   const [step, setStep] = useState(0);
   const [d, setD] = useState<Draft>(EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [paying, setPaying] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [upiCopied, setUpiCopied] = useState(false);
+  const [serverError, setServerError] = useState("");
   const price = useMemo(() => currentPrice(), []);
 
   useEffect(() => {
@@ -97,7 +104,10 @@ export function MultiStepForm() {
   }, []);
 
   useEffect(() => {
-    saveDraft(d);
+    // screenshot draft me save nahi — localStorage quota full ho jayega
+    const { paymentScreenshot: _omit, ...rest } = d;
+    void _omit;
+    saveDraft(rest);
   }, [d]);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) =>
@@ -158,13 +168,86 @@ export function MultiStepForm() {
     }
   }
 
-  async function confirmRegistration(status: Registration["paymentStatus"], paymentId?: string) {
+  function compressImage(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const maxSide = 1200;
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("canvas"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("load"));
+      };
+      img.src = url;
+    });
+  }
+
+  async function handleScreenshot(file: File | undefined) {
+    setErrors((p) => ({ ...p, paymentScreenshot: "" }));
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setErrors((p) => ({ ...p, paymentScreenshot: "Only image file (JPG/PNG) upload karo." }));
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setErrors((p) => ({ ...p, paymentScreenshot: "File 8MB se chhota hona chahiye." }));
+      return;
+    }
+    try {
+      const dataUrl = await compressImage(file);
+      if (dataUrl.length > 2_200_000) {
+        setErrors((p) => ({ ...p, paymentScreenshot: "Screenshot compress karke bhi bada hai — chhoti image do." }));
+        return;
+      }
+      set("paymentScreenshot", dataUrl);
+    } catch {
+      setErrors((p) => ({ ...p, paymentScreenshot: "Image read nahi hui. Dobara try karo." }));
+    }
+  }
+
+  async function submitUpiRegistration() {
+    const e: Record<string, string> = {};
+    const utr = d.utr.trim().toUpperCase();
+    if (!/^[A-Z0-9]{12}$/.test(utr)) {
+      e.utr = "12-digit UPI UTR / Transaction ID dalo (letters+digits, no space).";
+    }
+    if (!d.paymentScreenshot) {
+      e.paymentScreenshot = "Payment screenshot upload karna mandatory hai.";
+    }
+    // pehle ke steps ka quick re-check — jhol se bachne ke liye
+    if (d.fullName.trim().length < 3) e.fullName = "Step 1 wapas check karo — naam missing.";
+    if (!isValidEmail(d.email)) e.email = "Step 1 wapas check karo — email invalid.";
+    if (!isValidIndianMobile(d.mobile)) e.mobile = "Step 1 wapas check karo — mobile invalid.";
+    if (!d.branch || !d.year) e.academic = "Step 2 wapas check karo — branch/year missing.";
+    if (!d.emergencyName.trim() || !isValidIndianMobile(d.emergencyPhone)) {
+      e.emergency = "Step 4 wapas check karo — emergency contact missing.";
+    }
+    setErrors(e);
+    if (Object.keys(e).length > 0) return;
+
+    setSubmitting(true);
+    setServerError("");
     const now = new Date();
     const payload = {
       fullName: d.fullName.trim(),
-      email: d.email.trim(),
-      mobile: d.mobile.trim(),
-      whatsapp: (d.sameAsMobile ? d.mobile : d.whatsapp).trim(),
+      email: d.email.trim().toLowerCase(),
+      mobile: d.mobile.replace(/\D/g, "").slice(-10),
+      whatsapp: (d.sameAsMobile ? d.mobile : d.whatsapp).replace(/\D/g, "").slice(-10),
       gender: d.gender || undefined,
       college: COLLEGE_LOCKED,
       studentId: d.studentId.trim(),
@@ -179,32 +262,43 @@ export function MultiStepForm() {
       campusVisit: d.campusVisit,
       willingToTravel: d.willingToTravel,
       emergencyName: d.emergencyName.trim(),
-      emergencyPhone: d.emergencyPhone.trim(),
+      emergencyPhone: d.emergencyPhone.replace(/\D/g, "").slice(-10),
       accessibility: d.accessibility || undefined,
-      amountPaid: status === "paid" ? price : 0,
-      paymentStatus: status,
-      paymentId,
-      utr: d.utr || undefined,
+      amountPaid: price,
+      paymentStatus: "awaiting_verification" as const,
+      utr,
+      paymentScreenshot: d.paymentScreenshot,
     };
-    // Prefer MongoDB; fall back to local demo store when API is unreachable.
+    // MongoDB prefer; API down ho to local demo store (status same rahega).
     const serverReg = await persistToServer(payload);
     const reg: Registration = serverReg ?? {
       ...payload,
       id: generateRegId(),
       createdAt: now.toISOString(),
     };
+    // server ne reject kiya (invalid UTR/amount) to yahin error dikhao
+    if (!serverReg) {
+      try {
+        const res = await fetch("/api/registrations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok && res.status !== 503) {
+          const j = await res.json().catch(() => null);
+          setServerError(
+            j?.error?.message ?? "Submit nahi hua. UTR + screenshot check karke retry karo."
+          );
+          setSubmitting(false);
+          return;
+        }
+      } catch {
+        /* offline → local fallback ok */
+      }
+    }
     saveRegistration(reg);
     clearDraft();
     router.push(`/success?id=${encodeURIComponent(reg.id)}`);
-  }
-
-  function payOnline() {
-    setPaying(true);
-    // Placeholder for Razorpay/Cashfree order + webhook verify.
-    setTimeout(() => {
-      setPaying(false);
-      confirmRegistration("paid", `pay_${Date.now().toString(36)}`);
-    }, 1200);
   }
 
   return (
@@ -447,50 +541,87 @@ export function MultiStepForm() {
               <h2 className="flex items-center gap-2.5 font-display text-2xl">
                 <Ticket className="h-6 w-6 text-ember-soft" aria-hidden /> Secure your seat
               </h2>
-              <p className="mt-1 text-sm text-white/55">Review, then pay. Registration ID is issued instantly.</p>
+              <p className="mt-1 text-sm text-white/55">UPI se pay karo → UTR + screenshot do → admin verify karke seat confirm karega. Bina verification ke koi auto-paid nahi — jhol zero.</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
               <dl className="space-y-2 text-sm">
                 <div className="flex justify-between gap-4"><dt className="text-white/55">Name</dt><dd>{d.fullName || "—"}</dd></div>
                 <div className="flex justify-between gap-4"><dt className="text-white/55">Email</dt><dd className="break-all">{d.email || "—"}</dd></div>
+                <div className="flex justify-between gap-4"><dt className="text-white/55">Mobile</dt><dd>{d.mobile || "—"}</dd></div>
                 <div className="flex justify-between gap-4"><dt className="text-white/55">Branch · Year</dt><dd>{d.branch || "—"} · {d.year || "—"}</dd></div>
                 <div className="flex justify-between gap-4"><dt className="text-white/55">Campus / Travel</dt><dd>{d.campusVisit} / {d.willingToTravel}</dd></div>
               </dl>
+              {(errors.fullName || errors.email || errors.mobile || errors.academic || errors.emergency) && (
+                <p className="mt-4 text-xs text-red-300">Pichhle steps me kuch missing hai — Back karke fix karo.</p>
+              )}
             </div>
             <div className="rounded-3xl border border-ember/30 bg-ember/[0.06] p-6">
-              <p className="text-xs uppercase tracking-[0.2em] text-ember">Early bird price</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-ember">Pay via UPI</p>
               <p className="mt-2 flex items-baseline gap-3">
                 <span className="text-white/45 line-through">{formatINR(PRICING.mrp)}</span>
                 <span className="font-display text-4xl">{formatINR(price)}/-</span>
               </p>
               <p className="mt-1 text-xs text-white/55">Valid till {PRICING.earlyBirdEndsAtIST}</p>
-              <button
-                onClick={payOnline}
-                disabled={paying}
-                className="mt-5 w-full rounded-full bg-ember px-6 py-3.5 font-bold text-ink pressable transition-colors hover:bg-ember-deep disabled:opacity-60"
-              >
-                {paying ? "Processing…" : `PROCEED TO PAYMENT · ${formatINR(price)}`}
-              </button>
-              <div className="mt-5 border-t border-white/10 pt-5">
-                <label className={labelCls} htmlFor="utr">Paid manually via UPI? Enter UTR *</label>
-                <input id="utr" className={inputCls} placeholder="12-digit UTR / Transaction ID"
-                  value={d.utr} onChange={(e) => set("utr", e.target.value)} />
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
+                <p className="text-xs text-white/55">UPI ID</p>
+                <div className="mt-1 flex items-center justify-between gap-3">
+                  <code className="break-all font-mono text-sm text-cream">{UPI_ID}</code>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(`${UPI_ID}`).catch(() => {});
+                      setUpiCopied(true);
+                      window.setTimeout(() => setUpiCopied(false), 1500);
+                    }}
+                    className="shrink-0 rounded-full border border-white/20 px-3 py-1 text-xs font-semibold text-white/75 hover:border-ember/60 hover:text-ember"
+                  >
+                    {upiCopied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-white/55">
+                  Amount: <span className="font-bold text-cream">{formatINR(price)}</span> — apne UPI app (GPay/PhonePe/Paytm) se exact amount bhejo.
+                </p>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                <div>
+                  <label className={labelCls} htmlFor="utr">12-digit UTR / Transaction ID *</label>
+                  <input
+                    id="utr" className={inputCls} placeholder="e.g. 412345678901"
+                    value={d.utr} onChange={(e) => set("utr", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12))}
+                    inputMode="text" maxLength={12}
+                  />
+                  {errors.utr && <p className={errCls}>{errors.utr}</p>}
+                </div>
+                <div>
+                  <label className={labelCls} htmlFor="screenshot">Payment screenshot (JPG/PNG) *</label>
+                  <input
+                    id="screenshot" type="file" accept="image/*"
+                    onChange={(e) => void handleScreenshot(e.target.files?.[0])}
+                    className="w-full text-sm text-white/70 file:mr-3 file:rounded-full file:border-0 file:bg-ember file:px-4 file:py-2 file:text-sm file:font-bold file:text-white hover:file:bg-ember-deep"
+                  />
+                  {errors.paymentScreenshot && <p className={errCls}>{errors.paymentScreenshot}</p>}
+                  {d.paymentScreenshot && (
+                    <div className="mt-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={d.paymentScreenshot} alt="Payment screenshot preview" className="max-h-48 rounded-2xl border border-white/15 object-contain" />
+                      <button type="button" onClick={() => set("paymentScreenshot", "")} className="mt-2 text-xs text-white/55 underline hover:text-white">
+                        Remove & re-upload
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <button
-                  onClick={() => {
-                    if (d.utr.trim().length < 6) {
-                      setErrors({ utr: "Enter your UPI UTR to submit for verification." });
-                      return;
-                    }
-                    confirmRegistration("awaiting_verification");
-                  }}
-                  className="mt-3 w-full rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/85 pressable transition-colors hover:border-ember/60 hover:text-ember"
+                  onClick={submitUpiRegistration}
+                  disabled={submitting}
+                  className="w-full rounded-full bg-ember px-6 py-3.5 font-bold text-white pressable transition-colors hover:bg-ember-deep disabled:opacity-60"
                 >
-                  Submit UTR for verification
+                  {submitting ? "Submitting…" : `SUBMIT FOR VERIFICATION · ${formatINR(price)}`}
                 </button>
-                {errors.utr && <p className={errCls}>{errors.utr}</p>}
-                <p className="mt-3 text-xs leading-relaxed text-white/45">
-                  Gateway integration (Razorpay) plugs into <code>payOnline()</code> + webhook verify.
-                  UTR path marks status <code>awaiting_verification</code> for admin.
+                {serverError && <p className={errCls}>{serverError}</p>}
+                <p className="text-xs leading-relaxed text-white/45">
+                  Submit ke baad status <code>awaiting_verification</code> rahega. Admin screenshot + UTR match karke hi Paid karega. Safe option: Razorpay/Cashfree gateway (auto-verify + webhook) — keys milte hi plug kar dunga, tab tak ye manual-verified flow jhol-free hai.
                 </p>
               </div>
             </div>

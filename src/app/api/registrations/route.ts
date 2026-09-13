@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generateRegId, type Registration } from "@/lib/registration";
 import { CreateRegistrationSchema } from "@/lib/registration-schema";
 import { getRegistrationsCollection, isDbConfigured } from "@/lib/mongodb";
+import { PRICING } from "@/lib/pricing";
 
 type ApiError = {
   error: { code: string; message: string; details?: unknown };
@@ -63,6 +64,30 @@ export async function POST(req: Request) {
   const parsed = CreateRegistrationSchema.safeParse(body);
   if (!parsed.success) {
     return err(422, "VALIDATION_ERROR", "Invalid registration data.", parsed.error.flatten());
+  }
+
+  // JHOL guard: amount must be a real price (early-bird or MRP) — client can't set ₹1.
+  const allowed: number[] = [PRICING.earlyBird, PRICING.mrp];
+  if (!allowed.includes(parsed.data.amountPaid)) {
+    return err(422, "INVALID_AMOUNT", `Amount must be ₹${PRICING.earlyBird} or ₹${PRICING.mrp}.`);
+  }
+  // Manual UPI path: UTR (12-char) + screenshot mandatory, status always awaiting_verification.
+  // Direct "paid" from client is rejected — only admin PATCH can mark paid.
+  if (parsed.data.paymentStatus === "paid") {
+    return err(422, "INVALID_STATUS", "Direct paid status is not allowed. Submit UTR for verification.");
+  }
+  if (parsed.data.paymentStatus === "awaiting_verification") {
+    const utr = (parsed.data.utr ?? "").trim();
+    if (!/^[A-Za-z0-9]{12}$/.test(utr)) {
+      return err(422, "INVALID_UTR", "Enter the 12-digit UPI UTR / Transaction ID.");
+    }
+    const ss = parsed.data.paymentScreenshot ?? "";
+    if (ss.length < 1000) {
+      return err(422, "SCREENSHOT_REQUIRED", "Payment screenshot is required for verification.");
+    }
+    if (ss.length > 2_500_000) {
+      return err(413, "SCREENSHOT_TOO_LARGE", "Screenshot too large. Use a smaller image (<1.5MB).");
+    }
   }
 
   try {
@@ -148,5 +173,49 @@ export async function GET(req: Request) {
   } catch (e) {
     console.error("[api/registrations GET]", e);
     return err(500, "SERVER_ERROR", "Could not fetch registrations.");
+  }
+}
+
+// PATCH /api/registrations — admin verify: { id, action: "approve" | "reject" }
+export async function PATCH(req: Request) {
+  if (!isDbConfigured()) {
+    return err(503, "DB_NOT_CONFIGURED", "Database is not configured. Set MONGODB_URI.");
+  }
+  const headerKey = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return err(400, "INVALID_JSON", "Request body must be valid JSON.");
+  }
+  const { id, action, key: bodyKey } = (body ?? {}) as { id?: unknown; action?: unknown; key?: unknown };
+  const key = typeof bodyKey === "string" ? bodyKey : headerKey;
+
+  const expected = process.env.ADMIN_PASSCODE;
+  if (!expected) return err(503, "ADMIN_NOT_CONFIGURED", "Admin access is not configured.");
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (adminRateLimited(ip)) return err(429, "RATE_LIMITED", "Too many attempts. Try again in 15 minutes.");
+  if (!key || key !== expected) {
+    recordAdminFail(ip);
+    return err(401, "UNAUTHORIZED", "Wrong passcode.");
+  }
+  clearAdminFails(ip);
+
+  if (typeof id !== "string" || !id) return err(400, "INVALID_ID", "Registration id is required.");
+  if (action !== "approve" && action !== "reject") {
+    return err(400, "INVALID_ACTION", 'Action must be "approve" or "reject".');
+  }
+  try {
+    const col = await getRegistrationsCollection();
+    const update =
+      action === "approve"
+        ? { paymentStatus: "paid" as const }
+        : { paymentStatus: "pending" as const };
+    const res = await col.findOneAndUpdate({ id }, { $set: update }, { returnDocument: "after" });
+    if (!res) return err(404, "NOT_FOUND", "Registration not found.");
+    return NextResponse.json({ data: sanitize(res as unknown as Record<string, unknown>) });
+  } catch (e) {
+    console.error("[api/registrations PATCH]", e);
+    return err(500, "SERVER_ERROR", "Could not update registration.");
   }
 }

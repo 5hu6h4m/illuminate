@@ -51,6 +51,8 @@ export type Registration = {
   paymentStatus: "paid" | "pending" | "awaiting_verification";
   paymentId?: string;
   utr?: string;
+  /** UPI payment screenshot — compressed JPEG data URL (max ~1.5MB). Admin verifies. */
+  paymentScreenshot?: string;
   createdAt: string;
 };
 
@@ -123,14 +125,29 @@ export function toCSV(rows: Registration[]): string {
     "Registration ID",
     "Name",
     "Email",
-    "Phone",
+    "Mobile",
+    "WhatsApp",
+    "Gender",
     "College",
     "Student ID",
     "Branch",
     "Year",
+    "Division",
+    "Interests",
+    "Has Idea",
+    "Idea Text",
+    "Attended Startup Event",
+    "Attended Ecell",
     "Campus Visit Interest",
     "Travel Interest",
+    "Emergency Name",
+    "Emergency Phone",
+    "Accessibility",
+    "Amount Paid",
     "Payment Status",
+    "Payment ID",
+    "UTR",
+    "Has Screenshot",
     "Registration Date",
   ];
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
@@ -140,13 +157,28 @@ export function toCSV(rows: Registration[]): string {
       r.fullName,
       r.email,
       r.mobile,
+      r.whatsapp,
+      r.gender ?? "",
       r.college,
       r.studentId,
       r.branch,
       r.year,
+      r.division ?? "",
+      (r.interests ?? []).join(" | "),
+      r.hasIdea,
+      r.ideaText ?? "",
+      r.attendedStartupEvent,
+      r.attendedEcell,
       r.campusVisit,
       r.willingToTravel,
+      r.emergencyName,
+      r.emergencyPhone,
+      r.accessibility ?? "",
+      r.amountPaid,
       r.paymentStatus,
+      r.paymentId ?? "",
+      r.utr ?? "",
+      r.paymentScreenshot ? "YES" : "NO",
       r.createdAt,
     ]
       .map(esc)

@@ -5,7 +5,14 @@ export function SiteFooter() {
     <footer id="contact" className="border-t border-ember/15 bg-surface/60">
       <div className="mx-auto grid max-w-6xl gap-12 px-6 py-20 text-center md:grid-cols-3 md:text-left">
         <div>
-          <p className="font-display text-2xl tracking-wide">illuminate</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/ecell-logo.png"
+            alt="E-Cell MET"
+            loading="lazy"
+            className="mx-auto h-12 w-auto object-contain md:mx-0"
+          />
+          <p className="mt-4 font-display text-2xl tracking-wide">illuminate</p>
           <p className="mt-1 text-sm italic text-ember-soft">E-Cell IIT Bombay × E-Cell MET</p>
           <p className="mt-4 text-sm leading-relaxed text-white/55">
             6-hour interactive entrepreneurship workshop at MET Bhujbal Knowledge City.

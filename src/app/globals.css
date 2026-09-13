@@ -165,6 +165,236 @@ body {
   }
 }
 
+/* Illuminate preloader — 4s castle door: dot → smooth line → charge → beam */
+/* starting dot: breathes once on mount (same node then stretches, no remount) */
+.preloader-dot-in {
+  animation: preloader-dot-in 500ms ease-in-out both;
+}
+@keyframes preloader-dot-in {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+/* persistent seam node — dot→line morph is driven by inline
+   width/height/border-radius transition (900ms), never a jump cut */
+.preloader-seam {
+  will-change: width, height, box-shadow;
+  transform: translateZ(0);
+}
+/* legacy keyframes kept for fallback */
+.preloader-dot {
+  animation: preloader-dot 500ms ease-in-out both;
+}
+@keyframes preloader-dot {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+/* dot stretches into a full-height seam — slow + buttery, no jump */
+.preloader-draw {
+  transform-origin: center;
+  animation: preloader-draw 900ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+@keyframes preloader-draw {
+  0% {
+    transform: scaleY(0.02) scaleX(2.5);
+    opacity: 0;
+    filter: brightness(1.6);
+  }
+  30% {
+    transform: scaleY(0.45) scaleX(1.4);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1) scaleX(1);
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+/* seam heats up: thick white-hot pulse just before doors crack */
+.preloader-charge {
+  transform-origin: center;
+  animation: preloader-charge 380ms ease-in-out both;
+}
+@keyframes preloader-charge {
+  0% {
+    transform: scaleX(0.4);
+    opacity: 0.7;
+    filter: brightness(1);
+  }
+  55% {
+    transform: scaleX(1.6);
+    opacity: 1;
+    filter: brightness(1.8);
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+    filter: brightness(1.5);
+  }
+}
+/* bright beam: blooms from the gap as doors swing flat, holds bright, washes out */
+.preloader-beam-soft {
+  width: 6px;
+  opacity: 1;
+  background: linear-gradient(to bottom, transparent, #c4b5fd 18%, #ede9fe 50%, #c4b5fd 82%, transparent);
+  box-shadow: 0 0 80px 28px rgba(139, 92, 246, 0.95), 0 0 200px 90px rgba(124, 58, 237, 0.6), 0 0 60px 18px rgba(237, 233, 254, 0.9);
+  animation: preloader-beam-soft 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes preloader-beam-soft {
+  0% {
+    width: 6px;
+    opacity: 1;
+  }
+  30% {
+    width: 24vw;
+    opacity: 1;
+  }
+  60% {
+    width: 44vw;
+    opacity: 0.9;
+  }
+  100% {
+    width: 60vw;
+    opacity: 0;
+  }
+}
+/* bright interior flash: slams to near-full, holds while doors open, washes away */
+.preloader-flash-soft {
+  animation: preloader-flash-soft 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes preloader-flash-soft {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.95;
+  }
+  60% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* bright purple column: bursts wide the instant doors part, holds, then washes out */
+.preloader-beam {
+  width: 8px;
+  opacity: 1;
+  box-shadow: 0 0 80px 30px rgba(139, 92, 246, 1), 0 0 200px 100px rgba(124, 58, 237, 0.75), 0 0 80px 24px rgba(237, 233, 254, 0.95);
+  animation: preloader-beam 2.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes preloader-beam {
+  0% {
+    width: 8px;
+    opacity: 1;
+  }
+  20% {
+    width: 22vw;
+    opacity: 1;
+  }
+  55% {
+    width: 70vw;
+    opacity: 1;
+  }
+  100% {
+    width: 100vw;
+    opacity: 0;
+  }
+}
+/* full-screen interior flash: slams bright as doors crack, holds, then washes away */
+.preloader-flash {
+  animation: preloader-flash 2.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes preloader-flash {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* heavy doors grind — faint stone-on-stone shudder while they slide */
+.preloader-door-rumble {
+  animation: preloader-door-rumble 1s linear both;
+}
+@keyframes preloader-door-rumble {
+  0%, 100% {
+    margin-top: 0;
+  }
+  10% {
+    margin-top: -1px;
+  }
+  20% {
+    margin-top: 1px;
+  }
+  30% {
+    margin-top: -1px;
+  }
+  45% {
+    margin-top: 1px;
+  }
+  60% {
+    margin-top: -1px;
+  }
+  75% {
+    margin-top: 0;
+  }
+}
+.preloader-flame {
+  animation: preloader-flame-pulse 1.8s ease-in-out infinite;
+}
+@keyframes preloader-flame-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: brightness(1.25);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .preloader-dot,
+  .preloader-dot-in,
+  .preloader-seam,
+  .preloader-draw,
+  .preloader-charge,
+  .preloader-beam,
+  .preloader-beam-soft,
+  .preloader-flash,
+  .preloader-flash-soft,
+  .preloader-door-rumble,
+  .preloader-flame {
+    animation: none;
+  }
+}
+
 /* Visible keyboard focus everywhere */
 :focus-visible {
   outline: 2px solid var(--color-ember);
@@ -294,8 +524,8 @@ body {
 }
 .cube {
   position: relative;
-  width: min(300px, 68vw);
-  height: min(300px, 68vw);
+  width: min(360px, 76vw);
+  height: min(360px, 76vw);
   margin-inline: auto;
   transform-style: preserve-3d;
   animation: cube-spin 34s linear infinite;
@@ -314,18 +544,20 @@ body {
   padding: 1.25rem;
   text-align: center;
   overflow: hidden;
-  background: linear-gradient(145deg, rgba(30, 19, 56, 0.96), rgba(14, 9, 28, 0.96));
-  border: 1.5px solid rgba(167, 139, 250, 0.65);
+  background: linear-gradient(145deg, rgba(24, 14, 46, 0.68), rgba(8, 5, 18, 0.78));
+  border: 1px solid rgba(196, 181, 253, 0.45);
   box-shadow:
-    inset 0 0 40px rgba(139, 92, 246, 0.18),
-    0 0 45px rgba(139, 92, 246, 0.25);
-  backdrop-filter: blur(2px);
+    inset 0 0 60px rgba(139, 92, 246, 0.14),
+    inset 0 0 2px rgba(196, 181, 253, 0.5),
+    0 0 32px rgba(124, 58, 237, 0.22);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
 .cube-face p {
-  font-size: clamp(0.95rem, 4.5vw, 1.125rem);
-  line-height: 1.25;
+  font-size: clamp(0.8rem, 3.6vw, 0.95rem);
+  line-height: 1.3;
   text-wrap: balance;
 }
 @media (prefers-reduced-motion: reduce) {

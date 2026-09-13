@@ -15,17 +15,13 @@ export function SiteHeader() {
     <header className="absolute inset-x-0 top-0 z-40">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-5">
         <Link href="/#home" className="relative flex items-center gap-3" aria-label="Illuminate home">
-          {/* subtle purple glow behind the E-Cell MET mark — logo itself untouched */}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute -inset-3 rounded-full bg-ember/25 blur-xl"
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/ecell-logo.png"
+            alt="E-Cell"
+            fetchPriority="high"
+            className="relative h-11 w-auto object-contain"
           />
-          <span className="relative flex h-11 w-11 flex-col items-center justify-center leading-none">
-            <span className="font-display text-3xl text-white">E</span>
-            <span className="text-[0.55rem] font-semibold uppercase tracking-[0.18em] text-ember-soft">
-              e-cell
-            </span>
-          </span>
         </Link>
         <nav className="hidden items-center gap-8 font-body text-[1.05rem] text-ember-soft lg:flex" aria-label="Primary">
           {NAV.map(([label, href]) => (

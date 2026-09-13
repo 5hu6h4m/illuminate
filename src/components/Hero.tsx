@@ -24,22 +24,26 @@ export function Hero() {
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(55rem 34rem at 78% 40%, rgba(139,92,246,0.22), transparent 62%), radial-gradient(30rem 20rem at 15% 80%, rgba(124,58,237,0.12), transparent 60%)",
+            "radial-gradient(55rem 34rem at 82% 40%, rgba(139,92,246,0.22), transparent 62%), radial-gradient(30rem 20rem at 18% 80%, rgba(124,58,237,0.12), transparent 60%)",
         }}
       />
-      {/* flame artwork — right-side showcase behind content (like the reference) */}
+      {/* flame artwork — bigger showcase, shifted slightly right with the text */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/images/herobg.png"
         alt=""
         aria-hidden
         fetchPriority="high"
-        className="pointer-events-none absolute -right-16 top-24 w-64 object-contain opacity-50 md:right-[-7rem] md:top-1/2 md:w-[48rem] md:-translate-y-1/2 md:opacity-95 lg:right-[-4rem] lg:w-[58rem]"
+        className="pointer-events-none absolute right-0 top-24 w-[102vw] max-w-none object-contain opacity-70 md:right-[-6rem] md:top-1/2 md:w-[68vw] md:max-w-[80rem] md:-translate-y-1/2 md:opacity-90 lg:right-[-4rem] lg:w-[64vw] lg:opacity-90"
         style={{
+          mixBlendMode: "screen",
+          filter: "brightness(1.18) saturate(0.85)",
           maskImage:
-            "linear-gradient(to right, transparent 0%, black 28%)",
+            "linear-gradient(to right, transparent 0%, black 35%), linear-gradient(to bottom, black 82%, transparent 100%)",
           WebkitMaskImage:
-            "linear-gradient(to right, transparent 0%, black 28%)",
+            "linear-gradient(to right, transparent 0%, black 35%), linear-gradient(to bottom, black 82%, transparent 100%)",
+          maskComposite: "intersect",
+          WebkitMaskComposite: "source-in",
         }}
       />
       {/* gentle bottom fade into the next section */}
@@ -57,7 +61,7 @@ export function Hero() {
         src="/images/illuminate_background_particles_reference.png"
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right-bottom opacity-40"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right-bottom opacity-15"
         style={{
           maskImage:
             "radial-gradient(110% 95% at 85% 85%, black 30%, transparent 72%)",
@@ -65,8 +69,8 @@ export function Hero() {
             "radial-gradient(110% 95% at 85% 85%, black 30%, transparent 72%)",
         }}
       />
-      <div className="relative z-[2] mx-auto w-full max-w-7xl px-6 pb-20 pt-32 md:pt-40">
-        <div className="max-w-2xl">
+      <div className="relative z-[2] mr-auto w-full max-w-7xl px-6 pb-20 pt-32 md:pl-20 md:pt-40 lg:pl-32 xl:pl-40">
+        <div className="max-w-2xl md:ml-6 lg:ml-10">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ember-soft">
             E-Cell IIT Bombay × E-Cell MET
           </p>
@@ -76,18 +80,19 @@ export function Hero() {
             src="/images/logo2.png"
             alt="illuminate — Empowering the next generation of Changemakers"
             fetchPriority="high"
-            className="relative z-[3] mt-6 w-full max-w-md drop-shadow-[0_0_35px_rgba(139,92,246,0.35)] md:max-w-xl"
+            className="relative z-[3] -ml-1 mt-6 w-full max-w-md drop-shadow-[0_0_35px_rgba(139,92,246,0.35)] md:-ml-6 md:max-w-xl lg:-ml-8"
           />
           <p className="mt-6 max-w-md leading-relaxed text-white/65">
             6-hour offline, interactive entrepreneurship workshop at MET Bhujbal Knowledge City.
+            IIT Bombay certificate, Startup Kit, campus visit + free travel for Top 30*.
             Learn. Build. Network.
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-6">
-            <SkewButton href="/admin" variant="white">
-              Login
-            </SkewButton>
             <SkewButton href="/register" variant="violet">
-              Register
+              Register Now
+            </SkewButton>
+            <SkewButton href="/#about" variant="white">
+              Explore Event
             </SkewButton>
           </div>
           <ul className="mt-10 flex max-w-md flex-wrap gap-2 text-xs text-white/75" aria-label="Highlights">

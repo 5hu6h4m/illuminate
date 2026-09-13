@@ -41,8 +41,16 @@ export function AboutSection() {
 
 export function StructureSection() {
   return (
-    <section id="structure" className="section screen border-t border-ember/15 bg-surface/60">
-      <div className="mx-auto w-full max-w-6xl px-6 text-center">
+    <section id="structure" className="section screen relative overflow-hidden border-t border-ember/15 bg-black">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(46rem 28rem at 50% 46%, rgba(124,58,237,0.16), transparent 65%)",
+        }}
+      />
+      <div className="relative z-[2] mx-auto w-full max-w-6xl px-6 text-center">
         <h2 className="font-display text-4xl tracking-wide md:text-6xl">STRUCTURE</h2>
         <p className="mt-3 text-lg italic text-ember-soft">Workshop in your college/school</p>
         <div className="mt-8">

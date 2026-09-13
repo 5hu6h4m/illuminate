@@ -19,12 +19,12 @@ type P = {
 };
 
 function countForWidth(w: number) {
-  if (w < 640) return 22; // mobile: light
-  if (w < 1024) return 42; // tablet: reduced
-  return 72; // desktop: full
+  if (w < 640) return 12;
+  if (w < 1024) return 16;
+  return 19; // strict 15–20 on screen at once (desktop)
 }
 
-/** Pre-rendered radial glow sprite — drawImage is far cheaper than shadowBlur per frame. */
+/** Sharp close-up firefly sprite — bright core, tight halo, reads IN FRONT. */
 function makeSprite(tint: string) {
   const s = 64;
   const c = document.createElement("canvas");
@@ -33,10 +33,11 @@ function makeSprite(tint: string) {
   const g = c.getContext("2d");
   if (!g) return c;
   const grad = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-  grad.addColorStop(0, `rgba(233,213,255,0.95)`);
-  grad.addColorStop(0.25, `rgba(${tint},0.75)`);
-  grad.addColorStop(0.55, `rgba(${tint},0.28)`);
-  grad.addColorStop(1, `rgba(${tint},0)`);
+  grad.addColorStop(0, `rgba(255,255,255,1)`);
+  grad.addColorStop(0.18, `rgba(255,255,255,0.95)`);
+  grad.addColorStop(0.32, `rgba(${tint},0.85)`);
+  grad.addColorStop(0.5, `rgba(${tint},0.25)`);
+  grad.addColorStop(0.68, `rgba(${tint},0)`);
   g.fillStyle = grad;
   g.fillRect(0, 0, s, s);
   return c;
@@ -65,18 +66,28 @@ export function AmbientBackdrop() {
     let raf = 0;
     let running = true;
 
-    const spawn = (w: number, h: number, initial: boolean): P => ({
-      x: Math.random() * w,
-      y: initial ? Math.random() * h : h + 12,
-      r: 1 + Math.random() * 2.6,
-      vy: 6 + Math.random() * 14, // px/sec upward — slow cinematic
-      swayAmp: 6 + Math.random() * 18,
-      swaySpeed: 0.2 + Math.random() * 0.5,
-      phase: Math.random() * Math.PI * 2,
-      alpha: 0.35 + Math.random() * 0.5,
-      twinkle: 0.4 + Math.random() * 1.2,
-      sprite: Math.floor(Math.random() * sprites.length),
-    });
+    const spawn = (w: number, h: number, initial: boolean): P => {
+      // random speed tiers — kuch fast, kuch slow (firefly swarm feel)
+      const roll = Math.random();
+      const vy =
+        roll < 0.2
+          ? 85 + Math.random() * 45 // fast risers
+          : roll < 0.7
+            ? 35 + Math.random() * 35 // medium drift
+            : 14 + Math.random() * 18; // slow floaters
+      return {
+        x: Math.random() * w,
+        y: initial ? Math.random() * h : h + 12,
+        r: 1.6 + Math.random() * 1.8, // bigger = closer to screen, never tiny-far
+        vy,
+        swayAmp: 10 + Math.random() * 26,
+        swaySpeed: 0.4 + Math.random() * 0.9,
+        phase: Math.random() * Math.PI * 2,
+        alpha: 1, // full opacity — close to screen, never behind haze
+        twinkle: 0.7 + Math.random() * 1.4,
+        sprite: Math.floor(Math.random() * sprites.length),
+      };
+    };
 
     const resize = () => {
       const w = window.innerWidth;
@@ -90,20 +101,35 @@ export function AmbientBackdrop() {
       parts = Array.from({ length: n }, () => spawn(w, h, true));
     };
 
+    const smoothstep = (e0: number, e1: number, x: number) => {
+      const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+      return t * t * (3 - 2 * t);
+    };
+
     const draw = (t: number, dt: number) => {
       const w = window.innerWidth;
       const h = window.innerHeight;
       ctx.clearRect(0, 0, w, h);
+      // additive glow — particles read as light IN FRONT, never dull behind
+      ctx.globalCompositeOperation = "lighter";
       for (const p of parts) {
         p.y -= p.vy * dt;
-        if (p.y < -16) Object.assign(p, spawn(w, h, false));
-        const x = p.x + Math.sin(t * p.swaySpeed + p.phase) * p.swayAmp * 0.12;
-        const a = p.alpha * (0.62 + 0.38 * Math.sin(t * p.twinkle + p.phase));
-        const size = p.r * 9; // glow halo around a tiny core
+        // 90% upar (top ~8%) pahunchte hi recycle — gayab ho jayega
+        if (p.y < h * 0.06) Object.assign(p, spawn(w, h, false));
+        const x = p.x + Math.sin(t * p.swaySpeed + p.phase) * p.swayAmp * 0.35;
+        // jugnu: niche (progress=1) full opacity, upar jate fade, top 10% me 0
+        const progress = Math.max(0, Math.min(1, p.y / h)); // 1 bottom → 0 top
+        const topFade = smoothstep(0.06, 0.42, progress); // 6% pe 0, 42% tak full
+        // firefly blink — quadratic pulse, kabhi tez kabhi halka
+        const raw = 0.5 + 0.5 * Math.sin(t * p.twinkle + p.phase);
+        const blink = raw * raw; // 0..1, jugnu jaisa
+        const a = (0.8 + 0.2 * blink) * topFade; // opacity 1 at full — in front
+        const size = p.r * 5.5 * (0.6 + 0.7 * progress) * (0.92 + 0.25 * blink);
         ctx.globalAlpha = Math.max(0, Math.min(1, a));
         ctx.drawImage(sprites[p.sprite], x - size / 2, p.y - size / 2, size, size);
       }
       ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
     };
 
     if (reduced) {
@@ -153,7 +179,7 @@ export function AmbientBackdrop() {
           "radial-gradient(60rem 36rem at 82% 30%, rgba(109,40,217,0.16), transparent 62%), radial-gradient(44rem 30rem at 12% 85%, rgba(124,58,237,0.1), transparent 60%), linear-gradient(180deg, #050505 0%, #0B0612 55%, #050505 100%)",
       }}
     >
-      <canvas ref={canvasRef} className="h-full w-full" />
+      <canvas ref={canvasRef} className="h-full w-full opacity-100" />
     </div>
   );
 }

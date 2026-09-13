@@ -4,8 +4,8 @@ import { BRANCHES, COLLEGE_LOCKED, YEARS } from "./registration";
 const indianMobile = z
   .string()
   .trim()
-  .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit mobile number.")
-  .transform((v) => v.replace(/\D/g, "").slice(-10));
+  .transform((v) => v.replace(/\D/g, "").slice(-10))
+  .pipe(z.string().regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit mobile number."));
 
 export const CreateRegistrationSchema = z.object({
   fullName: z.string().trim().min(3).max(120),
@@ -32,6 +32,7 @@ export const CreateRegistrationSchema = z.object({
   paymentStatus: z.enum(["paid", "pending", "awaiting_verification"]),
   paymentId: z.string().max(120).optional(),
   utr: z.string().trim().max(60).optional(),
+  paymentScreenshot: z.string().max(2_500_000).optional(),
 });
 
 export type CreateRegistrationInput = z.infer<typeof CreateRegistrationSchema>;
