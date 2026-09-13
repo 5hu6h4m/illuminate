@@ -31,9 +31,31 @@ export default function AdminPage() {
   const [pin, setPin] = useState("");
 
   useEffect(() => {
-    const local = loadRegistrations();
-    setRows(local.length ? local : SEED);
-  }, []);
+    if (!authed) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/registrations?key=${encodeURIComponent(pin)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (!cancelled && Array.isArray(json?.data) && json.data.length) {
+            setRows(json.data as Registration[]);
+            return;
+          }
+        }
+      } catch {
+        /* API unavailable → local fallback below */
+      }
+      if (!cancelled) {
+        const local = loadRegistrations();
+        setRows(local.length ? local : SEED);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed]);
 
   const stats = useMemo(() => ({
     total: rows.length,
@@ -81,7 +103,7 @@ export default function AdminPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="font-display text-4xl">Overview</h1>
-            <p className="mt-2 text-sm text-white/55">Live from this browser (demo store). Supabase-ready schema.</p>
+            <p className="mt-2 text-sm text-white/55">Live from MongoDB when configured, otherwise this browser (demo store).</p>
           </div>
           <button
             onClick={() => downloadCSV("illuminate-participants.csv", toCSV(rows))}

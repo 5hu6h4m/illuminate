@@ -140,10 +140,27 @@ export function MultiStepForm() {
     if (validate(step)) setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
 
-  function confirmRegistration(status: Registration["paymentStatus"], paymentId?: string) {
+  async function persistToServer(payload: Omit<Registration, "id" | "createdAt">): Promise<Registration | null> {
+    try {
+      const res = await fetch("/api/registrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.data?.id) return json.data as Registration;
+      // 409 duplicate-email returns the existing record — reuse it.
+      const dup = json?.error?.data;
+      if (res.status === 409 && dup?.id) return dup as Registration;
+      return null;
+    } catch {
+      return null; // offline / DB not configured → local fallback below
+    }
+  }
+
+  async function confirmRegistration(status: Registration["paymentStatus"], paymentId?: string) {
     const now = new Date();
-    const reg: Registration = {
-      id: generateRegId(),
+    const payload = {
       fullName: d.fullName.trim(),
       email: d.email.trim(),
       mobile: d.mobile.trim(),
@@ -168,6 +185,12 @@ export function MultiStepForm() {
       paymentStatus: status,
       paymentId,
       utr: d.utr || undefined,
+    };
+    // Prefer MongoDB; fall back to local demo store when API is unreachable.
+    const serverReg = await persistToServer(payload);
+    const reg: Registration = serverReg ?? {
+      ...payload,
+      id: generateRegId(),
       createdAt: now.toISOString(),
     };
     saveRegistration(reg);

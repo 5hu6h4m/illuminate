@@ -59,8 +59,28 @@ function SuccessInner() {
   const [icsUrl, setIcsUrl] = useState("#");
 
   useEffect(() => {
-    const found = loadRegistrations().find((r) => r.id === id) ?? null;
-    setReg(found);
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/registrations?id=${encodeURIComponent(id)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (!cancelled && json?.data) {
+            setReg(json.data as Registration);
+            return;
+          }
+        }
+      } catch {
+        /* API unavailable (DB not configured) → local fallback */
+      }
+      if (!cancelled) {
+        setReg(loadRegistrations().find((r) => r.id === id) ?? null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   useEffect(() => {

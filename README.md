@@ -23,7 +23,10 @@ Reg ID `ILL-MET-2026-XXXXX` → success + WhatsApp + `.ics`.
 - Payments: plug Razorpay order + webhook verify into `src/components/MultiStepForm.tsx:payOnline`.
   UTR path already marks `awaiting_verification` for admin.
 - Email/WhatsApp: Resend + group link in `src/app/success/page.tsx` (link placeholder present).
-- DB/Auth: `src/lib/registration.ts` is Supabase-ready; admin gate is demo-only — add real auth.
+- DB/Auth: MongoDB Atlas via `MONGODB_URI` (`src/lib/mongodb.ts` + `POST/GET /api/registrations`,
+  Zod-validated at the boundary, duplicate-email → 409). Form/admin/success prefer the API and
+  fall back to localStorage when DB is unconfigured. Copy `.env.example` → `.env.local` with your
+  URL-encoded password. Admin gate is demo-only — set a strong `ADMIN_PASSCODE` before launch.
 - Images: drop files into `public/images/` (`hero-bg.jpg`, `campus-iitb.jpg`, `startup-kit.png`, logos).
 
 ## Export
