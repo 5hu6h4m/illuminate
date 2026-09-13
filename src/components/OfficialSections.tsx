@@ -5,8 +5,8 @@ import { StructureCube } from "@/components/StructureCube";
 
 export function AboutSection() {
   return (
-    <section id="about" className="section border-t border-ember/15">
-      <div className="mx-auto max-w-6xl px-6 text-center">
+    <section id="about" className="section screen scroll-mt-0 border-t border-ember/15">
+      <div className="mx-auto w-full max-w-6xl px-6 text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ember-soft">About Us</p>
         <h2 className="mx-auto mt-4 max-w-2xl font-display text-3xl leading-tight md:text-5xl">
           Asia&apos;s largest student-run entrepreneurship movement, now at MET
@@ -41,8 +41,8 @@ export function AboutSection() {
 
 export function StructureSection() {
   return (
-    <section id="structure" className="section border-t border-ember/15 bg-surface/60">
-      <div className="mx-auto max-w-6xl px-6 text-center">
+    <section id="structure" className="section screen border-t border-ember/15 bg-surface/60">
+      <div className="mx-auto w-full max-w-6xl px-6 text-center">
         <h2 className="font-display text-4xl tracking-wide md:text-6xl">STRUCTURE</h2>
         <p className="mt-3 text-lg italic text-ember-soft">Workshop in your college/school</p>
         <div className="mt-8">
@@ -63,8 +63,8 @@ const GUIDELINES = [
 
 export function GuidelinesSection() {
   return (
-    <section id="guidelines" className="section border-t border-ember/15">
-      <div className="mx-auto max-w-4xl px-6">
+    <section id="guidelines" className="section screen border-t border-ember/15">
+      <div className="mx-auto w-full max-w-4xl px-6">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.28em] text-ember-soft">
           Guidelines
         </p>

@@ -11,8 +11,8 @@ const STEPS = [
 
 export function FlowSteps() {
   return (
-    <section id="flow" className="section border-t border-white/8 bg-surface/40">
-      <div className="mx-auto max-w-6xl px-6">
+    <section id="flow" className="section screen border-t border-white/8 bg-surface/40">
+      <div className="mx-auto w-full max-w-6xl px-6">
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ember">How it works</p>
         <h2 className="mt-4 font-display text-3xl md:text-5xl">Calm, guided, in minutes</h2>
         <ol className="mt-12 space-y-5">

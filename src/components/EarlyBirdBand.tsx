@@ -4,8 +4,8 @@ import { formatINR, PRICING, savings } from "@/lib/pricing";
 
 export function EarlyBirdBand() {
   return (
-    <section id="early-bird" className="section border-t border-white/8">
-      <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 md:grid-cols-2 md:gap-16">
+    <section id="early-bird" className="section screen border-t border-white/8">
+      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 md:grid-cols-2 md:gap-16">
         <div>
           <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-ember">
             <Flame className="h-4 w-4" aria-hidden /> Early bird offer
