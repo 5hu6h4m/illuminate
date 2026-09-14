@@ -56,7 +56,6 @@ export type Registration = {
   createdAt: string;
 };
 
-const DRAFT_KEY = "illuminate-draft-v1";
 const LIST_KEY = "illuminate-registrations-v1";
 
 export function generateRegId(seq?: number): string {
@@ -74,32 +73,6 @@ export function isValidIndianMobile(v: string): boolean {
   return /^[6-9]\d{9}$/.test(d);
 }
 
-export function loadDraft<T>(fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    return raw ? { ...fallback, ...JSON.parse(raw) } : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-export function saveDraft(v: unknown): void {
-  try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(v));
-  } catch {
-    /* storage full/blocked — ignore */
-  }
-}
-
-export function clearDraft(): void {
-  try {
-    localStorage.removeItem(DRAFT_KEY);
-  } catch {
-    /* ignore */
-  }
-}
-
 export function loadRegistrations(): Registration[] {
   if (typeof window === "undefined") return [];
   try {
@@ -107,16 +80,6 @@ export function loadRegistrations(): Registration[] {
     return raw ? (JSON.parse(raw) as Registration[]) : [];
   } catch {
     return [];
-  }
-}
-
-export function saveRegistration(r: Registration): void {
-  const list = loadRegistrations();
-  list.unshift(r);
-  try {
-    localStorage.setItem(LIST_KEY, JSON.stringify(list));
-  } catch {
-    /* ignore */
   }
 }
 

@@ -1,56 +1,67 @@
-import { MongoClient, type Db } from "mongodb";
+import "server-only";
+
+import { GridFSBucket, MongoClient, type Collection, type Db } from "mongodb";
+import type { RegistrationV2 } from "@/lib/registration-v2";
 
 const uri = process.env.MONGODB_URI ?? "";
-const dbName = process.env.MONGODB_DB ?? "illuminate";
-
-if (!uri && process.env.NODE_ENV === "production") {
-  console.warn("[mongodb] MONGODB_URI is not set — API routes will return 503.");
-}
+const dbName = process.env.MONGODB_DB_NAME ?? process.env.MONGODB_DB ?? "illuminate";
 
 declare global {
-  // eslint-disable-next-line no-var
-  var __mongoClientPromise: Promise<MongoClient> | undefined;
+  var __illuminateMongoClientPromise: Promise<MongoClient> | undefined;
+  var __illuminateIndexesPromise: Promise<void> | undefined;
 }
 
-let clientPromise: Promise<MongoClient> | null = null;
-
+let clientPromise: Promise<MongoClient> | undefined;
 function getClientPromise(): Promise<MongoClient> {
-  if (!uri) {
-    return Promise.reject(new Error("MONGODB_URI is not configured"));
-  }
+  if (!uri) return Promise.reject(new Error("MONGODB_URI is not configured"));
   if (clientPromise) return clientPromise;
   if (process.env.NODE_ENV === "development") {
-    if (!global.__mongoClientPromise) {
-      const client = new MongoClient(uri);
-      global.__mongoClientPromise = client.connect();
-    }
-    clientPromise = global.__mongoClientPromise;
-  } else {
-    const client = new MongoClient(uri);
-    clientPromise = client.connect();
-  }
+    global.__illuminateMongoClientPromise ??= new MongoClient(uri).connect();
+    clientPromise = global.__illuminateMongoClientPromise;
+  } else clientPromise = new MongoClient(uri).connect();
   return clientPromise;
 }
 
-export async function getDb(): Promise<Db> {
-  const client = await getClientPromise();
-  return client.db(dbName);
-}
+export function isDbConfigured(): boolean { return Boolean(uri); }
+export async function getDb(): Promise<Db> { return (await getClientPromise()).db(dbName); }
+export async function getRegistrationsCollection(): Promise<Collection<RegistrationV2>> { return (await getDb()).collection<RegistrationV2>("registrations"); }
+export async function getPaymentProofBucket(): Promise<GridFSBucket> { return new GridFSBucket(await getDb(), { bucketName: "payment_proofs" }); }
 
-export async function getRegistrationsCollection() {
-  const db = await getDb();
-  const col = db.collection("registrations");
-  // Best-effort indexes; safe to call on every request.
-  try {
-    await col.createIndex({ id: 1 }, { unique: true });
-    await col.createIndex({ email: 1 }, { unique: true });
-    await col.createIndex({ createdAt: -1 });
-  } catch {
-    /* index build races are harmless */
-  }
-  return col;
-}
-
-export function isDbConfigured(): boolean {
-  return Boolean(uri);
+/** Idempotently creates schema-v2 indexes. Legacy documents never participate in these constraints. */
+export async function ensurePaymentIndexes(): Promise<void> {
+  global.__illuminateIndexesPromise ??= (async () => {
+    const db = await getDb();
+    const registrations = db.collection<RegistrationV2>("registrations");
+    const current = { schemaVersion: 2 } as const;
+    // Early legacy versions used non-sparse root `id`/`email` unique indexes.
+    // Schema-v2 records intentionally do not carry those fields, so MongoDB
+    // treats every v2 document as the same null key. Replace only the exact
+    // known legacy indexes with partial equivalents; never touch other indexes.
+    const existingIndexes = await registrations.indexes();
+    const replaceUnsafeLegacyIndex = async (name: "id_1" | "email_1", field: "id" | "email") => {
+      const index = existingIndexes.find((candidate) => candidate.name === name);
+      if (!index || !index.unique || index.sparse || index.partialFilterExpression || JSON.stringify(index.key) !== JSON.stringify({ [field]: 1 })) return;
+      await registrations.dropIndex(name);
+      await registrations.createIndex({ [field]: 1 }, {
+        name: `legacy_${field}_unique`,
+        unique: true,
+        partialFilterExpression: { [field]: { $type: "string" } },
+      });
+    };
+    await replaceUnsafeLegacyIndex("id_1", "id");
+    await replaceUnsafeLegacyIndex("email_1", "email");
+    await Promise.all([
+      registrations.createIndex({ publicId: 1 }, { name: "v2_public_id_unique", unique: true, partialFilterExpression: current }),
+      registrations.createIndex({ eventKey: 1, "participant.normalizedEmail": 1 }, { name: "v2_event_email_unique", unique: true, partialFilterExpression: current }),
+      registrations.createIndex({ eventKey: 1, "participant.normalizedPhone": 1 }, { name: "v2_event_phone_unique", unique: true, partialFilterExpression: current }),
+      registrations.createIndex({ eventKey: 1, idempotencyKeyHash: 1 }, { name: "v2_idempotency_unique", unique: true, partialFilterExpression: current }),
+      registrations.createIndex({ eventKey: 1, "payment.transactionReference": 1 }, { name: "v2_transaction_reference_unique", unique: true, partialFilterExpression: { schemaVersion: 2, "payment.transactionReference": { $exists: true } } }),
+      registrations.createIndex({ "payment.status": 1, "payment.submittedAt": 1 }, { name: "v2_admin_queue", partialFilterExpression: current }),
+      registrations.createIndex({ participantAccessTokenHash: 1 }, { name: "v2_access_token", unique: true, partialFilterExpression: current }),
+      registrations.createIndex({ createdAt: -1 }, { name: "v2_created_at", partialFilterExpression: current }),
+      db.collection("rate_limits").createIndex({ expiresAt: 1 }, { name: "rate_limit_expiry", expireAfterSeconds: 0 }),
+      db.collection("rate_limits").createIndex({ key: 1 }, { name: "rate_limit_key", unique: true }),
+    ]);
+  })();
+  return global.__illuminateIndexesPromise;
 }

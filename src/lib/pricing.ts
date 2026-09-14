@@ -1,24 +1,21 @@
+import { event } from "@/config/event";
+import { calculateProductionPricing } from "@/lib/payment-pricing";
+
 export const PRICING = {
-  mrp: 699,
-  earlyBird: 599,
   currency: "₹",
-  // IST deadline
-  earlyBirdEndsAtIST: "20 September 2026, 11:59 PM IST",
-  earlyBirdDeadline: new Date("2026-09-20T23:59:59+05:30"),
+  confirmation: event.fee.confirmation,
+  earlyBird: event.fee.pricing.earlyBirdAmount,
+  regular: event.fee.pricing.regularAmount,
+  earlyBirdDurationHours: event.fee.pricing.earlyBirdDurationHours,
 } as const;
 
-export function isEarlyBirdActive(now = new Date()): boolean {
-  return now.getTime() <= PRICING.earlyBirdDeadline.getTime();
+export function currentPrice(at: Date = new Date()): number {
+  return calculateProductionPricing({
+    registrationOpenAt: event.registration.registrationOpenAt,
+    earlyBirdDurationHours: event.fee.pricing.earlyBirdDurationHours,
+    earlyBirdAmount: event.fee.pricing.earlyBirdAmount,
+    regularAmount: event.fee.pricing.regularAmount,
+  }, at).amount;
 }
 
-export function currentPrice(now = new Date()): number {
-  return isEarlyBirdActive(now) ? PRICING.earlyBird : PRICING.mrp;
-}
-
-export function savings(): number {
-  return PRICING.mrp - PRICING.earlyBird;
-}
-
-export function formatINR(n: number): string {
-  return `${PRICING.currency}${n.toLocaleString("en-IN")}`;
-}
+export function formatINR(n: number): string { return `${PRICING.currency}${n.toLocaleString("en-IN")}`; }

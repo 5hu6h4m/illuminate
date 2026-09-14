@@ -1,35 +1,22 @@
-# Illuminate 2026 — E-Cell IIT Bombay × E-Cell MET
+# Illuminate 2026 — E-Cell MET
 
-6-hour interactive entrepreneurship workshop site. Next.js 15 + TypeScript + Tailwind.
+Next.js, TypeScript, Tailwind, MongoDB and Zod event platform.
 
-## Run
+## Before changing copy
+
+Read [Content Truth](docs/CONTENT_TRUTH.md). Event facts are defined in `src/config/event.ts`; pending facts must never be made public.
+
+## Commands
 
 ```bash
-npm install
-npm run dev     # http://localhost:3000
+npm run dev
+npm run lint
+npm run typecheck
 npm run build
 ```
 
-Routes: `/` landing · `/register` 4-step form · `/success?id=` confirmation · `/admin` dashboard (passcode `met2026` demo).
+## Current phase
 
-## Flow
+Phase 1 is active. Public registration is intentionally gated until organizers confirm the fee, schedule, eligibility and approved UPI recipient. Later work is documented in [Phase 1 Foundation](docs/PHASE_1_FOUNDATION.md) and [Information Architecture](docs/INFORMATION_ARCHITECTURE.md).
 
-Landing (₹999 → ₹699 till 20 Sept 2026) → Personal → Academic (MET locked) → Profile →
-Travel + consents → Payment placeholder (gateway hook in `payOnline()` + manual UTR) →
-Reg ID `ILL-MET-2026-XXXXX` → success + WhatsApp + `.ics`.
-
-## Wire up for real
-
-- Payments: plug Razorpay order + webhook verify into `src/components/MultiStepForm.tsx:payOnline`.
-  UTR path already marks `awaiting_verification` for admin.
-- Email/WhatsApp: Resend + group link in `src/app/success/page.tsx` (link placeholder present).
-- DB/Auth: MongoDB Atlas via `MONGODB_URI` (`src/lib/mongodb.ts` + `POST/GET /api/registrations`,
-  Zod-validated at the boundary, duplicate-email → 409). Form/admin/success prefer the API and
-  fall back to localStorage when DB is unconfigured. Copy `.env.example` → `.env.local` with your
-  URL-encoded password. Admin gate is demo-only — set a strong `ADMIN_PASSCODE` before launch.
-- Images: drop files into `public/images/` (`hero-bg.jpg`, `campus-iitb.jpg`, `startup-kit.png`, logos).
-
-## Export
-
-Admin → Export Participants (CSV) with IITB columns: Reg ID, Name, Email, Phone, College,
-Student ID, Branch, Year, Campus interest, Travel interest, Payment status, Date.
+Routes: `/`, `/register`, `/success?id=`, `/admin` and `/api/registrations`.

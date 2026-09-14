@@ -7,12 +7,20 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:payment-policy": "node --test tests/registration-duplicate-policy.test.mjs tests/payment-pricing.test.mjs",
+    "dev:test-payment-e2e": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/dev-test-payment-e2e.mts",
+    "launch:check": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/launch-check.mts",
+    "qa:production": "node scripts/qa-production.mjs",
+    "admin:hash-password": "node scripts/hash-admin-password.mjs",
+    "dev:clear-payment-tests": "node --env-file-if-exists=.env.local scripts/clear-development-payment-tests.mjs"
   },
   "dependencies": {
+    "@types/qrcode": "^1.5.6",
     "lucide-react": "^1.45.0",
     "mongodb": "^7.6.0",
     "next": "16.3.5",
+    "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "^4.6.4"

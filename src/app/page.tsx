@@ -1,35 +1,34 @@
-import { SiteHeader } from "@/components/SiteHeader";
-import { SocialRail } from "@/components/SocialRail";
-import { AmbientBackdrop } from "@/components/AmbientBackdrop";
-import { Hero } from "@/components/Hero";
-import { AboutSection, StructureSection, GuidelinesSection } from "@/components/OfficialSections";
-import { ImpactSection } from "@/components/ImpactSection";
-import { BenefitCards } from "@/components/BenefitCards";
-import { EarlyBirdBand } from "@/components/EarlyBirdBand";
-import { FlowSteps } from "@/components/FlowSteps";
+import Link from "next/link";
+import { ArrowDownRight, ArrowUpRight, CalendarDays, MapPin, Sparkles } from "lucide-react";
+import { event, isConfirmedText, isPaymentRegistrationAvailable, type ConfirmationState } from "@/config/event";
+import { calculateProductionPricing } from "@/lib/payment-pricing";
+import { confirmedBenefits } from "@/content/landing";
+import { Faq } from "@/components/landing/Faq";
+import { IgnitionVisual } from "@/components/landing/IgnitionVisual";
+import { IgnitionThread } from "@/components/landing/IgnitionThread";
+import { LandingHeader } from "@/components/landing/LandingHeader";
+import { WorkshopJourney } from "@/components/landing/WorkshopJourney";
+import { Container } from "@/components/ui/Container";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SiteFooter } from "@/components/SiteFooter";
 
+const detail = (fact: { value: string | null; confirmation: ConfirmationState }) => isConfirmedText(fact) ? fact.value : "To be announced";
+
 export default function Home() {
-  return (
-    <>
-      {/* fixed particle backdrop — z-0, behind everything, never intercepts input */}
-      <AmbientBackdrop />
-      {/* content layer above the backdrop */}
-      <div className="relative z-10">
-        <SiteHeader />
-        <main>
-          <Hero />
-          <AboutSection />
-          <ImpactSection />
-          <StructureSection />
-          <GuidelinesSection />
-          <BenefitCards />
-          <EarlyBirdBand />
-          <FlowSteps />
-        </main>
-        <SiteFooter />
-      </div>
-      <SocialRail />
-    </>
-  );
+  const registrationAvailable = isPaymentRegistrationAvailable();
+  const cta = registrationAvailable ? { href: "/register", label: "Register now" } : { href: "#details", label: "View event details" };
+  const pricing = calculateProductionPricing({ registrationOpenAt: event.registration.registrationOpenAt, earlyBirdDurationHours: event.fee.pricing.earlyBirdDurationHours, earlyBirdAmount: event.fee.pricing.earlyBirdAmount, regularAmount: event.fee.pricing.regularAmount });
+  const pricingCopy = <>Early Bird ₹{event.fee.pricing.earlyBirdAmount} <span aria-hidden>·</span> Regular ₹{event.fee.pricing.regularAmount}</>;
+  return <div id="top" className="landing-shell"><LandingHeader /><main>
+    <section className="landing-hero" aria-labelledby="hero-title"><Container className="landing-hero__content"><div className="landing-hero__copy"><p className="text-eyebrow text-brand-electric">{event.identity.edition} · {event.organizer.name}</p><h1 id="hero-title"><span>Ideas deserve</span><em>an ignition point.</em></h1><p className="landing-hero__summary">{event.identity.shortDescription}</p><p className="landing-hero__association">{event.association.label}</p><div className="landing-hero__actions"><Link href={cta.href} className="landing-button"><span>{cta.label}</span><ArrowUpRight aria-hidden /></Link><a href="#journey" className="landing-text-link">Explore the experience <ArrowDownRight aria-hidden /></a></div></div><IgnitionVisual /></Container></section>
+    <section className="landing-association" aria-label="Event association"><Container><div className="association-lockup"><span className="association-lockup__host">{event.organizer.name}</span><span aria-hidden className="association-lockup__connector">×</span><span className="association-lockup__initiative">Illuminate initiative<br />E-Cell IIT Bombay</span><p>{event.association.label}</p></div></Container></section>
+    <section id="about" className="landing-section landing-why"><Container><SectionHeading eyebrow="Why Illuminate" title="A better place to start asking entrepreneurial questions."><p>Illuminate creates room to look closely at the ideas, problems and people behind meaningful work—before rushing to an answer.</p></SectionHeading><div className="why-composition"><p className="why-composition__lead">IIT Bombay&apos;s entrepreneurship ecosystem, brought to your campus.</p><div className="why-network" aria-hidden><span>?</span><span>?</span><span>?</span><span className="why-network__core">+</span><IgnitionThread /></div><div className="why-composition__points"><span>Ideas</span><span>Perspective</span><span>Momentum</span></div></div></Container></section>
+    <section id="journey" className="landing-section landing-journey"><Container><SectionHeading className="journey-intro" eyebrow="The experience" title="From a spark of interest to a clearer next move."><p>The workshop details will be announced as they are finalised. The journey below describes the intent, not a fixed agenda.</p></SectionHeading><WorkshopJourney /></Container></section>
+    <section className="landing-section landing-value"><Container><div className="value-grid"><div><p className="text-eyebrow text-brand-ember">Why attend</p><h2 className="text-section-title">Make curiosity more useful.</h2></div><div className="value-grid__body"><p>Illuminate is open to everyone who wants an intentional entry point into entrepreneurship—not a list of promises, but a setting to explore what matters to them.</p><div className="value-grid__rule" /><p className="text-text-muted">Early Bird applies during the first 5 days of registration.</p></div><div className="value-map" aria-label="Registration pricing"><span className="value-map__dimension value-map__dimension--question">Early Bird</span><span className="value-map__dimension value-map__dimension--context">Regular</span><div className="value-map__core"><span>{pricing.tier === "early_bird" ? "Early Bird active" : "Registration"}</span><strong>₹{pricing.amount.toLocaleString("en-IN")}</strong></div><span className="value-map__dimension value-map__dimension--exchange">₹{event.fee.pricing.earlyBirdAmount}</span><span className="value-map__dimension value-map__dimension--direction">₹{event.fee.pricing.regularAmount}</span></div></div></Container></section>
+    {confirmedBenefits.length ? <section className="landing-section landing-benefits"><Container><SectionHeading eyebrow="Confirmed inclusions" title="Part of your experience." /><ul>{confirmedBenefits.map((benefit) => <li key={benefit.key}><Sparkles aria-hidden /><div><h3>{benefit.label}</h3><p>{benefit.copy}</p></div></li>)}</ul></Container></section> : null}
+    <section id="details" className="landing-section landing-details"><Container><div className="event-object"><div className="event-object__identity"><span>ILL / {event.identity.edition}</span><strong>{event.identity.name}</strong><small>{event.organizer.name}</small></div><div className="event-object__facts"><div><span className="event-object__label"><CalendarDays aria-hidden /> Schedule</span><strong>{detail(event.schedule.date)}</strong></div><div><span className="event-object__label"><MapPin aria-hidden /> Venue</span><strong>{detail(event.schedule.venue)}</strong></div><div><span className="event-object__label">Registration</span><strong>{registrationAvailable ? "Open" : "Opening soon"}</strong></div><div><span className="event-object__label">Pricing</span><strong>{pricingCopy}</strong></div></div><div className="event-object__note">Registration deadline: {detail(event.registration.deadline)}.</div></div></Container></section>
+    <section id="faq" className="landing-section landing-faq"><Container><div className="landing-section__split"><SectionHeading eyebrow="Questions, answered" title="Clear before you commit."><p>We would rather be specific than make promises early.</p></SectionHeading><Faq /></div></Container></section>
+    <section className="landing-section landing-support"><Container><div className="support-panel"><div><p className="text-eyebrow text-brand-electric">Hosted by</p><h2>{event.organizer.name}</h2></div><p>{event.association.label}</p></div></Container></section>
+    <section className="landing-final"><Container><div className="landing-final__inner"><IgnitionThread variant="converge" /><p className="text-eyebrow text-brand-ember">Illuminate {event.identity.edition}</p><h2>Stay close to the spark.</h2><p>Registration is open to everyone. {pricingCopy}.</p><Link href={cta.href} className="landing-button"><span>Register now</span><ArrowUpRight aria-hidden /></Link></div></Container></section>
+  </main><SiteFooter />{!registrationAvailable ? <a className="landing-mobile-cta" href="#details">Registration opening soon <ArrowDownRight aria-hidden /></a> : <Link className="landing-mobile-cta" href="/register">Register now <ArrowUpRight aria-hidden /></Link>}</div>;
 }

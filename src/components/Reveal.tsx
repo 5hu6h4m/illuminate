@@ -1,6 +1,6 @@
 "use client";
 
-import { createElement, useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { createElement, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 type Props = {
   children: ReactNode;
@@ -13,13 +13,12 @@ type Props = {
 
 /** Once-only staggered scroll reveal. Decorative — content is visible without JS-motion. */
 export function Reveal({ children, delay = 0, className = "", as = "div", flip = false }: Props) {
-  const ref = useRef<HTMLElement | null>(null);
+  const [element, setElement] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+    if (!element) return;
     if (typeof IntersectionObserver === "undefined") {
-      el.classList.add("is-visible");
+      element.classList.add("is-visible");
       return;
     }
     const io = new IntersectionObserver(
@@ -33,16 +32,14 @@ export function Reveal({ children, delay = 0, className = "", as = "div", flip =
       },
       { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
     );
-    io.observe(el);
+    io.observe(element);
     return () => io.disconnect();
-  }, []);
+  }, [element]);
 
   return createElement(
     as,
     {
-      ref: (el: HTMLElement | null) => {
-        ref.current = el;
-      },
+      ref: setElement,
       className: `reveal${flip ? " flip-reveal" : ""} ${className}`,
       style: { "--reveal-delay": `${delay}ms` } as CSSProperties,
     },
