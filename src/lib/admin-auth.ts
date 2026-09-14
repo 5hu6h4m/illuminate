@@ -10,7 +10,7 @@ function secret(): string | null { return process.env.ADMIN_SESSION_SECRET?.trim
 export function verifyAdminPassword(password: string): boolean {
   const configured = process.env.ADMIN_PASSWORD_HASH?.trim();
   if (!configured) return false;
-  const [kind, salt, encodedHash] = configured.split("$");
+  const [kind, salt, encodedHash] = configured.split(/[$:]/);
   if (kind !== "scrypt" || !salt || !encodedHash) return false;
   const expected = Buffer.from(encodedHash, "base64url");
   const actual = scryptSync(password, salt, expected.length);

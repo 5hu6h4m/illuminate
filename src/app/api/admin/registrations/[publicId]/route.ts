@@ -17,14 +17,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ pub
         if (!result) { console.warn("[admin-review] test verification transition conflict", publicId); return apiError(409, "INVALID_STATE_TRANSITION", "This registration changed since you opened it. Refresh the record."); }
         return sensitiveJson({ publicId: result.publicId, paymentStatus: result.payment.status, isTest: true });
       }
-      const parsed = AdminVerifySchema.safeParse({ ...body, publicId });
+      const parsed = AdminVerifySchema.safeParse({ publicId, confirmedInRecipientAccount: body?.confirmedInRecipientAccount });
       if (!parsed.success) return apiError(422, "INVALID_REQUEST", "Confirm recipient-account verification before verifying payment.");
       const result = await verifyPaymentForReview({ publicId, simulatedDevelopmentPayment: false });
       if (!result) { console.warn("[admin-review] production verification transition conflict", publicId); return apiError(409, "INVALID_STATE_TRANSITION", "This registration changed since you opened it. Refresh the record."); }
       return sensitiveJson({ publicId: result.publicId, paymentStatus: result.payment.status, isTest: false });
     }
     if (body?.action === "reject") {
-      const parsed = AdminRejectSchema.safeParse({ ...body, publicId });
+      const parsed = AdminRejectSchema.safeParse({ publicId, publicReason: body?.publicReason, privateNote: body?.privateNote });
       if (!parsed.success) return apiError(422, "INVALID_REQUEST", "A concise participant-facing rejection reason is required.");
       const result = await rejectPaymentForReview({ publicId, publicReason: parsed.data.publicReason, privateNote: parsed.data.privateNote });
       if (!result) { console.warn("[admin-review] rejection transition conflict", publicId); return apiError(409, "INVALID_STATE_TRANSITION", "This registration changed since you opened it. Refresh the record."); }
