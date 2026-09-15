@@ -37,6 +37,12 @@ Status legend: **PASS** = verified in code or an executed check; **PENDING CONFI
 - **PASS** Public metadata exists; admin/private status routes are noindex and private responses are no-store.
 - **PENDING DEPLOYMENT** Smoke-test the deployed site on one desktop and one real mobile device; manually assess screen-reader/keyboard paths and production performance.
 
+## Transactional email readiness
+
+- **PASS** Payment-submitted and registration-confirmed notifications are persisted side effects after their respective database transitions. They never alter payment truth on provider failure.
+- **PASS** TEST records are dry-run suppressed and standard E2E asserts no Resend call is made.
+- **PENDING CONFIGURATION** Configure a Resend-verified sending domain, server-only Resend variables, and an HTTPS `APP_BASE_URL` before relying on participant email delivery.
+
 ## E. Required launch actions
 
 1. Configure `MONGODB_URI`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET`, and `PARTICIPANT_TOKEN_SECRET` in the production secret store.

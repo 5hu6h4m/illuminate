@@ -33,6 +33,10 @@ Provide a short participant-facing reason, for example “Screenshot unclear —
 
 Exports require admin authentication. Test records, proof files, participant tokens, credentials, and MongoDB IDs are excluded. Formula-like CSV values are escaped.
 
+## Transactional email status
+
+The record review view shows safe notification status for submission and verification email: sent, failed, suppressed, or not sent. A failed email never reverses a proof submission or payment verification. Ask participants to keep their secure status link; do not send arbitrary custom messages from the dashboard. TEST notification status is `suppressed` and never represents delivery.
+
 ## Lost private status link
 
 Do not recover a link from only a registration reference, email, or phone; those are not credentials. Ask the participant to contact E-Cell MET Team at `met.iot.ecell@gmail.com`, then follow an organizer-approved identity-verification process. No automated recovery flow exists.

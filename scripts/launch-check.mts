@@ -22,6 +22,14 @@ function hasUsableAdminHash() {
 function hasSufficientSecret(name: string) {
   return (process.env[name]?.trim().length ?? 0) >= 32;
 }
+function hasProductionEmailConfiguration() {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.RESEND_FROM_EMAIL?.trim();
+  const replyTo = process.env.RESEND_REPLY_TO_EMAIL?.trim();
+  const baseUrl = process.env.APP_BASE_URL?.trim();
+  if (!apiKey || !from || !replyTo || !baseUrl) return false;
+  try { return process.env.NODE_ENV !== "production" || new URL(baseUrl).protocol === "https:"; } catch { return false; }
+}
 
 function checkPreviewProductionInvariant() {
   const environment = process.env as Record<string, string | undefined>;
@@ -102,6 +110,7 @@ async function run() {
   result(previewInvariant ? "PASS" : "BLOCKER", previewInvariant ? "Preview flags are hard-disabled when NODE_ENV is production." : "Production preview invariant failed.");
   result(paymentBuilderInvariant ? "PASS" : "BLOCKER", paymentBuilderInvariant ? "Canonical UPI URI builder preserves encoded fixture facts." : "Canonical UPI URI invariant failed.");
   result(paymentAvailable ? "PASS" : "BLOCKER", paymentAvailable ? "Confirmed payment configuration can create canonical payment snapshots." : "Confirmed payment configuration is incomplete or its payment snapshot could not be created.");
+  result(hasProductionEmailConfiguration() ? "PASS" : "PENDING", hasProductionEmailConfiguration() ? "Transactional email configuration is present." : "Transactional email configuration incomplete (RESEND_API_KEY, RESEND_FROM_EMAIL, RESEND_REPLY_TO_EMAIL, and APP_BASE_URL are required for delivery).");
   await checkDatabase();
 
   const configurationFacts = [

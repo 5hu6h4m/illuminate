@@ -14,6 +14,8 @@ export const AdminRejectSchema = z.object({ publicId: z.string().regex(/^ILL26-[
 
 export type AuditEventType = "registration_created" | "payment_proof_submitted" | "payment_proof_resubmitted" | "payment_verified" | "payment_rejected" | "admin_login_success" | "admin_login_failed";
 export type AuditEvent = { type: AuditEventType; actor: "participant" | "admin" | "system"; at: Date; metadata?: Record<string, string | number | boolean> };
+export type TransactionalEmailStatus = "pending" | "sending" | "sent" | "failed" | "suppressed";
+export type TransactionalEmailNotification = { status: TransactionalEmailStatus; eventKey: string; lastAttemptAt?: Date; sentAt?: Date; resendId?: string; errorCode?: string };
 
 export type RegistrationV2 = {
   schemaVersion: 2;
@@ -37,6 +39,7 @@ export type RegistrationV2 = {
     verifiedBy?: string;
     rejectedBy?: string;
   };
+  emailNotifications?: { paymentSubmitted?: TransactionalEmailNotification; paymentVerified?: TransactionalEmailNotification };
   idempotencyKeyHash: string;
   audit: AuditEvent[];
   createdAt: Date;
@@ -46,6 +49,7 @@ export type RegistrationV2 = {
 export type PublicStatus = {
   publicId: string;
   participantName: string;
+  participantEmailMasked?: string;
   eventName: string;
   expectedAmount: number | null;
   pricingTier: "early_bird" | "regular" | "development_preview";
@@ -56,6 +60,8 @@ export type PublicStatus = {
   rejectedAt?: string;
   rejectionReason?: string;
   isTest: boolean;
+  submissionEmailStatus?: "sent" | "failed" | "suppressed" | "not_sent";
+  verificationEmailStatus?: "sent" | "failed" | "suppressed" | "not_sent";
   paymentInstructions?: { payeeName: string; upiId: string; upiUri?: string };
 };
 

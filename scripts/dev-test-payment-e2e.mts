@@ -98,6 +98,8 @@ async function run() {
   requireCondition(Boolean(submitted.payment.currentProofId), "Proof reference was not persisted.");
   activeStep = "proof submission audit";
   requireCondition(auditIncludes(submitted, "payment_proof_submitted"), "Proof-submitted audit event is missing.");
+  const submittedEmail = await (await getRegistrationsCollection()).findOne({ schemaVersion: 2, publicId: submitted.publicId }, { projection: { emailNotifications: 1 } });
+  requireCondition(submittedEmail?.emailNotifications?.paymentSubmitted?.status === "suppressed", "Test proof submission attempted external email delivery.");
   activeStep = "private proof storage check";
   requireCondition(await (await getDb()).collection("payment_proofs.files").findOne({ _id: new ObjectId(submitted.payment.currentProofId) }), "Proof was not stored privately in GridFS.");
   pass("Proof submitted");
@@ -126,6 +128,8 @@ async function run() {
   requireCondition(verified?.payment.status === "verified" && verified.payment.verifiedAt && auditIncludes(verified, "payment_verified"), "Simulated verification was not persisted.");
   const verifiedStatus = await getPublicStatusForParticipantToken(first.token);
   requireCondition(verifiedStatus?.isTest && verifiedStatus.paymentStatus === "verified", "Participant status did not reflect simulated verification.");
+  const verifiedEmail = await (await getRegistrationsCollection()).findOne({ schemaVersion: 2, publicId: verified.publicId }, { projection: { emailNotifications: 1 } });
+  requireCondition(verifiedEmail?.emailNotifications?.paymentVerified?.status === "suppressed", "Test verification attempted external email delivery.");
   pass("Simulated verification persisted");
 
   activeStep = "real/test isolation";

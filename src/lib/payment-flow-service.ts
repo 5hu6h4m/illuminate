@@ -5,6 +5,7 @@ import { TransactionReferenceSchema, type PublicStatus, type RegistrationV2 } fr
 import { buildUpiUri, detectImageType, hashParticipantAccessToken, isDevE2EPreviewEnabled, isValidParticipantAccessToken, MAX_PAYMENT_PROOF_BYTES, normalizeTransactionReference } from "@/lib/payment";
 import { ensurePaymentIndexes, getPaymentProofBucket, getRegistrationsCollection } from "@/lib/mongodb";
 import { developmentTestRegistrationFilter, realRegistrationFilter } from "@/lib/registration-filters";
+import { dispatchTransactionalEmail } from "@/lib/email/transactional-email";
 
 export class PaymentFlowError extends Error {
   readonly code: string;
@@ -25,9 +26,12 @@ export async function getPublicStatusForParticipantToken(token: string): Promise
   if (!registration) return null;
   const snapshot = registration.payment.snapshot;
   const awaitingPayment = registration.payment.status === "payment_pending" || registration.payment.status === "rejected";
+  const [emailLocal = "", emailDomain = ""] = registration.participant.email.split("@");
+  const participantEmailMasked = emailDomain ? `${emailLocal.slice(0, 2)}${"•".repeat(Math.max(1, emailLocal.length - 2))}@${emailDomain}` : undefined;
   return {
     publicId: registration.publicId,
     participantName: registration.participant.fullName,
+    participantEmailMasked,
     eventName: "Illuminate 2026",
     isTest: registration.isTest,
     expectedAmount: snapshot.expectedAmount,
@@ -38,6 +42,8 @@ export async function getPublicStatusForParticipantToken(token: string): Promise
     verifiedAt: registration.payment.verifiedAt?.toISOString(),
     rejectedAt: registration.payment.rejectedAt?.toISOString(),
     rejectionReason: registration.payment.publicRejectionReason,
+    submissionEmailStatus: registration.emailNotifications?.paymentSubmitted?.status === "sent" || registration.emailNotifications?.paymentSubmitted?.status === "failed" || registration.emailNotifications?.paymentSubmitted?.status === "suppressed" ? registration.emailNotifications.paymentSubmitted.status : "not_sent",
+    verificationEmailStatus: registration.emailNotifications?.paymentVerified?.status === "sent" || registration.emailNotifications?.paymentVerified?.status === "failed" || registration.emailNotifications?.paymentVerified?.status === "suppressed" ? registration.emailNotifications.paymentVerified.status : "not_sent",
     paymentInstructions: awaitingPayment ? { payeeName: snapshot.payeeName, upiId: snapshot.upiId, ...(snapshot.mode === "production" ? { upiUri: buildUpiUri(snapshot, registration.publicId) } : {}) } : undefined,
   };
 }
@@ -78,6 +84,8 @@ export async function submitPaymentProofForParticipant(input: {
     });
     const now = new Date();
     const wasResubmission = registration.payment.status === "rejected";
+    const submissionVersion = registration.payment.proofHistory.length + 1;
+    const emailEventKey = `illuminate-payment-submitted-${registration.publicId}-${submissionVersion}`;
     const result = await (await getRegistrationsCollection()).findOneAndUpdate(
       { _id: registration._id, schemaVersion: 2, "payment.status": registration.payment.status },
       {
@@ -88,6 +96,7 @@ export async function submitPaymentProofForParticipant(input: {
           "payment.submittedAt": now,
           "payment.publicRejectionReason": undefined,
           "payment.privateAdminNote": undefined,
+          "emailNotifications.paymentSubmitted": { status: "pending", eventKey: emailEventKey },
           updatedAt: now,
         },
         $push: {
@@ -98,6 +107,7 @@ export async function submitPaymentProofForParticipant(input: {
       { returnDocument: "after" },
     );
     if (!result) throw new PaymentFlowError("INVALID_STATE_TRANSITION", "This registration changed. Refresh the page and try again.");
+    await dispatchTransactionalEmail("paymentSubmitted", result).catch(() => undefined);
     return result;
   } catch (error: unknown) {
     await bucket.delete(uploaded.id as ObjectId).catch(() => undefined);
@@ -132,21 +142,25 @@ export async function verifyPaymentForReview(input: { publicId: string; simulate
   const now = new Date();
   if (input.simulatedDevelopmentPayment) {
     if (!isDevE2EPreviewEnabled()) throw new PaymentFlowError("NOT_FOUND", "Not found.");
-    return collection.findOneAndUpdate(
+    const result = await collection.findOneAndUpdate(
       { ...developmentTestRegistrationFilter, publicId: input.publicId, "payment.status": "submitted_for_verification" },
       {
-        $set: { "payment.status": "verified", "payment.verifiedAt": now, "payment.verifiedBy": "development-preview", updatedAt: now },
+        $set: { "payment.status": "verified", "payment.verifiedAt": now, "payment.verifiedBy": "development-preview", "emailNotifications.paymentVerified": { status: "pending", eventKey: `illuminate-registration-verified-${input.publicId}-1` }, updatedAt: now },
         $push: { audit: { type: "payment_verified", actor: "admin", at: now, metadata: { developmentSimulation: true } } },
       },
       { returnDocument: "after", projection: { participantAccessTokenHash: 0, idempotencyKeyHash: 0 } },
     );
+    if (result) await dispatchTransactionalEmail("paymentVerified", result).catch(() => undefined);
+    return result;
   }
-  return collection.findOneAndUpdate(
+  const result = await collection.findOneAndUpdate(
     { ...realRegistrationFilter, publicId: input.publicId, "payment.status": "submitted_for_verification" },
     {
-      $set: { "payment.status": "verified", "payment.verifiedAt": now, "payment.verifiedBy": "admin", updatedAt: now },
+      $set: { "payment.status": "verified", "payment.verifiedAt": now, "payment.verifiedBy": "admin", "emailNotifications.paymentVerified": { status: "pending", eventKey: `illuminate-registration-verified-${input.publicId}-1` }, updatedAt: now },
       $push: { audit: { type: "payment_verified", actor: "admin", at: now, metadata: { confirmedInRecipientAccount: true } } },
     },
     { returnDocument: "after", projection: { participantAccessTokenHash: 0, idempotencyKeyHash: 0 } },
   );
+  if (result) await dispatchTransactionalEmail("paymentVerified", result).catch(() => undefined);
+  return result;
 }

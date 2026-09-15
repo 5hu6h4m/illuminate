@@ -33,6 +33,12 @@
 3. Check home, register, private status, and admin routes once on a desktop and a mobile browser.
 4. Organizer confirms final public content and operational verification procedure.
 
+## Transactional email launch requirement
+
+- [ ] Resend sending domain is verified for `RESEND_FROM_EMAIL`; do not use Resend's testing sender for participant delivery.
+- [ ] `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_REPLY_TO_EMAIL`, and HTTPS `APP_BASE_URL` are configured in the production secret store.
+- [ ] Run `npm run email:test` only in development with a synthetic recipient, then verify the production sender/domain separately.
+
 ## Stop / rollback triggers
 
 Immediately close registration or deploy the previous release if payment instructions, recipient identity, admin access, proof privacy, or database persistence is suspect. Preserve audit records and proof files, inform the operations owner, rotate compromised secrets, and never mark unverified payments as confirmed.

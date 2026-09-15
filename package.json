@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:payment-policy": "node --test tests/registration-duplicate-policy.test.mjs tests/payment-pricing.test.mjs",
+    "test:payment-policy": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/registration-duplicate-policy.test.mjs tests/payment-pricing.test.mjs tests/transactional-email.test.mjs",
+    "test:email": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/transactional-email.test.mjs",
+    "email:test": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/test-resend-email.mts",
     "dev:test-payment-e2e": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/dev-test-payment-e2e.mts",
     "launch:check": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/launch-check.mts",
     "qa:production": "node scripts/qa-production.mjs",
@@ -23,6 +25,7 @@
     "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "resend": "^6.28.0",
     "zod": "^4.6.4"
   },
   "devDependencies": {
