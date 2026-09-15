@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Check, Copy, LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { registrationForm } from "@/config/registration";
 import { createRegistrationDetailsSchema, emptyRegistrationDetails, formatIndianPhone, type RegistrationDetails, type RegistrationDetailsDraft } from "@/lib/registration-details";
+import { clearAttempt, loadPersistedAttempt, saveRegistration, storeAttempt } from "@/lib/registration-continuation";
 
 type Field = keyof RegistrationDetailsDraft;
 const schema = createRegistrationDetailsSchema();
@@ -41,8 +42,12 @@ export function RegistrationWizard({ preview, e2ePreview = false }: { preview: b
   const [errors, setErrors] = useState<Partial<Record<Field | "consent" | "form", string>>>({});
   const [consent, setConsent] = useState(false);
   const [creating, setCreating] = useState(false);
-  const idempotencyKey = useRef(newIdempotencyKey());
-  const requestedDetails = useRef<string | null>(null);
+  // Resume a pre-redirect attempt after reload: the same tab reuses the key
+  // for identical normalized details, turning a would-be 409 into an
+  // idempotent replay that returns the existing secure link.
+  const initialAttempt = typeof window !== "undefined" ? loadPersistedAttempt(window.sessionStorage) : null;
+  const idempotencyKey = useRef(initialAttempt?.key ?? newIdempotencyKey());
+  const requestedDetails = useRef<string | null>(initialAttempt?.fingerprint ?? null);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => heading.current?.focus(), [step]);
   const setField = (field: Field, value: string) => { setDraft((current) => ({ ...current, [field]: value })); setErrors((current) => ({ ...current, [field]: undefined, form: undefined })); };
@@ -59,9 +64,18 @@ export function RegistrationWizard({ preview, e2ePreview = false }: { preview: b
       // starts a distinct creation attempt instead of replaying the old one.
       if (requestedDetails.current && requestedDetails.current !== detailsFingerprint) idempotencyKey.current = newIdempotencyKey();
       requestedDetails.current = detailsFingerprint;
+      if (typeof window !== "undefined") storeAttempt(window.sessionStorage, { key: idempotencyKey.current, fingerprint: detailsFingerprint });
       const response = await fetch("/api/payment/registrations", { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey.current }, body: JSON.stringify({ details }) });
       const json = await response.json().catch(() => null);
       if (!response.ok || !json?.data?.statusUrl) throw new Error(registrationCreationMessages[json?.error?.code] || json?.error?.message || "Could not create your payment registration.");
+      if (typeof window !== "undefined") {
+        // Persist the holder's own link on their device for later recovery,
+        // then retire the pre-redirect attempt key.
+        if (typeof json.data.publicId === "string" && typeof json.data.statusUrl === "string") {
+          saveRegistration(window.localStorage, { publicId: json.data.publicId, statusUrl: json.data.statusUrl, savedAt: new Date().toISOString() });
+        }
+        clearAttempt(window.sessionStorage);
+      }
       window.location.assign(json.data.statusUrl);
     } catch (error) { setErrors({ form: error instanceof Error ? error.message : "Could not create your payment registration. Please retry." }); setCreating(false); }
   };
