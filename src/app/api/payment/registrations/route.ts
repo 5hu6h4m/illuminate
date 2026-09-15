@@ -25,7 +25,10 @@ export async function POST(request: Request) {
     const parsed = PendingRegistrationRequestSchema.safeParse(await request.json());
     if (!parsed.success) return apiError(422, "INVALID_DETAILS", "Please review your registration details.");
     const tokenSecretCheck = generateParticipantAccessToken("ILL26-ABCDEF");
-    if (!tokenSecretCheck) return apiError(503, "REGISTRATION_UNAVAILABLE", "Registration is unavailable. Please try again later.");
+    if (!tokenSecretCheck) {
+      console.error("[payment] PARTICIPANT_TOKEN_SECRET is not configured; registration creation is disabled.");
+      return apiError(503, "REGISTRATION_UNAVAILABLE", "Registration is unavailable. Please try again later.");
+    }
     await ensurePaymentIndexes();
     const collection = await getRegistrationsCollection();
     const idempotencyKeyHash = createHash("sha256").update(idempotencyKey).digest("hex");

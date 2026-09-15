@@ -12,13 +12,26 @@ declare global {
 }
 
 let clientPromise: Promise<MongoClient> | undefined;
+function clientOptions() {
+  return {
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 5000,
+    maxPoolSize: 10,
+    retryWrites: true,
+  };
+}
 function getClientPromise(): Promise<MongoClient> {
   if (!uri) return Promise.reject(new Error("MONGODB_URI is not configured"));
   if (clientPromise) return clientPromise;
   if (process.env.NODE_ENV === "development") {
-    global.__illuminateMongoClientPromise ??= new MongoClient(uri).connect();
+    global.__illuminateMongoClientPromise ??= new MongoClient(uri, clientOptions()).connect();
     clientPromise = global.__illuminateMongoClientPromise;
-  } else clientPromise = new MongoClient(uri).connect();
+  } else clientPromise = new MongoClient(uri, clientOptions()).connect();
+  // Avoid caching a rejected connection forever (serverless cold-start blips).
+  clientPromise.catch(() => {
+    clientPromise = undefined;
+    if (process.env.NODE_ENV === "development") global.__illuminateMongoClientPromise = undefined;
+  });
   return clientPromise;
 }
 
@@ -29,7 +42,8 @@ export async function getPaymentProofBucket(): Promise<GridFSBucket> { return ne
 
 /** Idempotently creates schema-v2 indexes. Legacy documents never participate in these constraints. */
 export async function ensurePaymentIndexes(): Promise<void> {
-  global.__illuminateIndexesPromise ??= (async () => {
+  if (global.__illuminateIndexesPromise) return global.__illuminateIndexesPromise;
+  const task = (async () => {
     const db = await getDb();
     const registrations = db.collection<RegistrationV2>("registrations");
     const current = { schemaVersion: 2 } as const;
@@ -63,5 +77,10 @@ export async function ensurePaymentIndexes(): Promise<void> {
       db.collection("rate_limits").createIndex({ key: 1 }, { name: "rate_limit_key", unique: true }),
     ]);
   })();
-  return global.__illuminateIndexesPromise;
+  global.__illuminateIndexesPromise = task;
+  // A transient index failure must not poison all later requests until redeploy.
+  task.catch(() => {
+    global.__illuminateIndexesPromise = undefined;
+  });
+  return task;
 }

@@ -6,11 +6,17 @@ import { ArrowLeft, ArrowRight, Check, Copy, LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { registrationForm } from "@/config/registration";
 import { createRegistrationDetailsSchema, emptyRegistrationDetails, formatIndianPhone, type RegistrationDetails, type RegistrationDetailsDraft } from "@/lib/registration-details";
+import { clearAttempt, loadPersistedAttempt, saveRegistration, storeAttempt } from "@/lib/registration-continuation";
 
 type Field = keyof RegistrationDetailsDraft;
 const schema = createRegistrationDetailsSchema();
 const steps = ["Details", "Review", "Payment"];
-const newIdempotencyKey = () => crypto.randomUUID();
+const newIdempotencyKey = () => {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  } catch { /* fall through to fallback */ }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`;
+};
 const registrationCreationMessages: Record<string, string> = {
   REGISTRATION_ALREADY_STARTED: "A registration is already in progress for these details. Continue using your secure registration link, or contact E-Cell MET Team at met.iot.ecell@gmail.com if you no longer have it.",
   REGISTRATION_REQUIRES_ACTION: "A registration needs action. Use your existing secure registration link to resubmit payment proof, or contact E-Cell MET Team at met.iot.ecell@gmail.com if you no longer have it.",
@@ -21,7 +27,13 @@ const registrationCreationMessages: Record<string, string> = {
 function errorMap(value: RegistrationDetailsDraft) {
   const parsed = schema.safeParse(value);
   if (parsed.success) return {} as Partial<Record<Field, string>>;
-  return parsed.error.issues.reduce<Partial<Record<Field, string>>>((out, issue) => ({ ...out, [issue.path[0] as Field]: issue.message }), {});
+  const out: Partial<Record<Field, string>> = {};
+  for (const issue of parsed.error.issues) {
+    const key = issue.path[0] as Field | undefined;
+    if (key && !out[key]) out[key] = issue.message;
+    else if (!key && !out.fullName) out.fullName = issue.message;
+  }
+  return out;
 }
 
 export function RegistrationWizard({ preview, e2ePreview = false }: { preview: boolean; e2ePreview?: boolean }) {
@@ -30,8 +42,12 @@ export function RegistrationWizard({ preview, e2ePreview = false }: { preview: b
   const [errors, setErrors] = useState<Partial<Record<Field | "consent" | "form", string>>>({});
   const [consent, setConsent] = useState(false);
   const [creating, setCreating] = useState(false);
-  const idempotencyKey = useRef(newIdempotencyKey());
-  const requestedDetails = useRef<string | null>(null);
+  // Resume a pre-redirect attempt after reload: the same tab reuses the key
+  // for identical normalized details, turning a would-be 409 into an
+  // idempotent replay that returns the existing secure link.
+  const initialAttempt = typeof window !== "undefined" ? loadPersistedAttempt(window.sessionStorage) : null;
+  const idempotencyKey = useRef(initialAttempt?.key ?? newIdempotencyKey());
+  const requestedDetails = useRef<string | null>(initialAttempt?.fingerprint ?? null);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => heading.current?.focus(), [step]);
   const setField = (field: Field, value: string) => { setDraft((current) => ({ ...current, [field]: value })); setErrors((current) => ({ ...current, [field]: undefined, form: undefined })); };
@@ -48,9 +64,18 @@ export function RegistrationWizard({ preview, e2ePreview = false }: { preview: b
       // starts a distinct creation attempt instead of replaying the old one.
       if (requestedDetails.current && requestedDetails.current !== detailsFingerprint) idempotencyKey.current = newIdempotencyKey();
       requestedDetails.current = detailsFingerprint;
+      if (typeof window !== "undefined") storeAttempt(window.sessionStorage, { key: idempotencyKey.current, fingerprint: detailsFingerprint });
       const response = await fetch("/api/payment/registrations", { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey.current }, body: JSON.stringify({ details }) });
       const json = await response.json().catch(() => null);
       if (!response.ok || !json?.data?.statusUrl) throw new Error(registrationCreationMessages[json?.error?.code] || json?.error?.message || "Could not create your payment registration.");
+      if (typeof window !== "undefined") {
+        // Persist the holder's own link on their device for later recovery,
+        // then retire the pre-redirect attempt key.
+        if (typeof json.data.publicId === "string" && typeof json.data.statusUrl === "string") {
+          saveRegistration(window.localStorage, { publicId: json.data.publicId, statusUrl: json.data.statusUrl, savedAt: new Date().toISOString() });
+        }
+        clearAttempt(window.sessionStorage);
+      }
       window.location.assign(json.data.statusUrl);
     } catch (error) { setErrors({ form: error instanceof Error ? error.message : "Could not create your payment registration. Please retry." }); setCreating(false); }
   };
@@ -65,12 +90,19 @@ export function RegistrationWizard({ preview, e2ePreview = false }: { preview: b
 }
 
 function Details({ draft, errors, setField, onSubmit, heading }: { draft: RegistrationDetailsDraft; errors: Partial<Record<Field | "consent" | "form", string>>; setField: (field: Field, value: string) => void; onSubmit: () => void; heading: React.RefObject<HTMLHeadingElement | null> }) {
-  const fields: Array<{ field: Field; label: string; type?: string; inputMode?: "email" | "tel" }> = [{ field: "fullName", label: "Full name" }, { field: "email", label: "Email address", type: "email", inputMode: "email" }, { field: "phone", label: "Phone number", type: "tel", inputMode: "tel" }];
-  return <section aria-labelledby="registration-details-title"><p className="text-eyebrow text-brand-electric">Step 01</p><h1 id="registration-details-title" ref={heading} tabIndex={-1}>Your details</h1><p className="registration-step__intro">A few essentials first. You&apos;ll review them before payment.</p><form noValidate onSubmit={(event) => { event.preventDefault(); onSubmit(); }}><div className="registration-fields">{fields.map(({ field, label, type, inputMode }) => <label className={`registration-field${field === "fullName" ? " registration-field--wide" : ""}`} key={field} htmlFor={`registration-${field}`}><span>{label} <b aria-hidden>*</b></span><input id={`registration-${field}`} required name={field} type={type} inputMode={inputMode} autoComplete={field === "fullName" ? "name" : field === "email" ? "email" : "tel"} placeholder={field === "phone" ? "+91 98765 43210" : undefined} value={draft[field]} onChange={(event) => setField(field, event.target.value)} aria-invalid={Boolean(errors[field])} aria-describedby={errors[field] ? `registration-${field}-error` : undefined} />{errors[field] && <small id={`registration-${field}-error`} className="registration-field__error">{errors[field]}</small>}</label>)}</div><p className="registration-field__help">We&apos;ll use your number only for registration-related updates.</p><button className="registration-primary-action">Review details <ArrowRight aria-hidden /></button></form></section>;
+  const YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "Other"] as const;
+  return <section aria-labelledby="registration-details-title"><p className="text-eyebrow">Step 01</p><h1 id="registration-details-title" ref={heading} tabIndex={-1}>Your details</h1><p className="registration-step__intro">Name, contact, college, branch and year. You&apos;ll review them before payment.</p><form noValidate onSubmit={(event) => { event.preventDefault(); onSubmit(); }}><div className="registration-fields">
+    <label className="registration-field registration-field--wide" htmlFor="registration-fullName"><span>Full name <b aria-hidden>*</b></span><input id="registration-fullName" required name="fullName" autoComplete="name" value={draft.fullName} onChange={(event) => setField("fullName", event.target.value)} aria-invalid={Boolean(errors.fullName)} aria-describedby={errors.fullName ? "registration-fullName-error" : undefined} />{errors.fullName && <small id="registration-fullName-error" className="registration-field__error">{errors.fullName}</small>}</label>
+    <label className="registration-field" htmlFor="registration-email"><span>Email address <b aria-hidden>*</b></span><input id="registration-email" required name="email" type="email" inputMode="email" autoComplete="email" value={draft.email} onChange={(event) => setField("email", event.target.value)} aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? "registration-email-error" : undefined} />{errors.email && <small id="registration-email-error" className="registration-field__error">{errors.email}</small>}</label>
+    <label className="registration-field" htmlFor="registration-phone"><span>Mobile number <b aria-hidden>*</b></span><input id="registration-phone" required name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="+91 98765 43210" value={draft.phone} onChange={(event) => setField("phone", event.target.value)} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "registration-phone-error" : undefined} />{errors.phone && <small id="registration-phone-error" className="registration-field__error">{errors.phone}</small>}</label>
+    <label className="registration-field registration-field--wide" htmlFor="registration-college"><span>College / organization <b aria-hidden>*</b></span><input id="registration-college" required name="college" autoComplete="organization" placeholder="e.g. MET Bhujbal Knowledge City" value={draft.college} onChange={(event) => setField("college", event.target.value)} aria-invalid={Boolean(errors.college)} aria-describedby={errors.college ? "registration-college-error" : undefined} />{errors.college && <small id="registration-college-error" className="registration-field__error">{errors.college}</small>}</label>
+    <label className="registration-field" htmlFor="registration-branch"><span>Branch / department <b aria-hidden>*</b></span><input id="registration-branch" required name="branch" placeholder="e.g. Computer Engineering" value={draft.branch} onChange={(event) => setField("branch", event.target.value)} aria-invalid={Boolean(errors.branch)} aria-describedby={errors.branch ? "registration-branch-error" : undefined} />{errors.branch && <small id="registration-branch-error" className="registration-field__error">{errors.branch}</small>}</label>
+    <label className="registration-field" htmlFor="registration-year"><span>Year of study <b aria-hidden>*</b></span><select id="registration-year" required name="year" value={draft.year} onChange={(event) => setField("year", event.target.value)} aria-invalid={Boolean(errors.year)} aria-describedby={errors.year ? "registration-year-error" : undefined}><option value="">Select year</option>{YEARS.map((year) => <option key={year} value={year}>{year}</option>)}</select>{errors.year && <small id="registration-year-error" className="registration-field__error">{errors.year}</small>}</label>
+  </div><p className="registration-field__help">We&apos;ll use your number and email only for registration-related updates.</p><button className="registration-primary-action">Review details <ArrowRight aria-hidden /></button></form></section>;
 }
 
 function Review({ draft, consent, errors, setConsent, onBack, onEdit, onContinue, creating, heading }: { draft: RegistrationDetails; consent: boolean; errors: Partial<Record<Field | "consent" | "form", string>>; setConsent: (value: boolean) => void; onBack: () => void; onEdit: () => void; onContinue: () => void; creating: boolean; heading: React.RefObject<HTMLHeadingElement | null> }) {
-  return <section aria-labelledby="registration-review-title"><p className="text-eyebrow text-brand-electric">Step 02</p><h1 id="registration-review-title" ref={heading} tabIndex={-1}>Review &amp; confirm</h1><p className="registration-step__intro">Check the essentials. Your payment registration is created only after you continue.</p><div className="registration-review"><div className="registration-review__heading"><h2>Your details</h2><button type="button" onClick={onEdit}>Edit</button></div><dl><div><dt>Full name</dt><dd>{draft.fullName}</dd></div><div><dt>Email</dt><dd>{draft.email}</dd></div><div><dt>Phone</dt><dd>{formatIndianPhone(draft.phone)}</dd></div></dl></div><div className="registration-expectation"><p className="text-eyebrow text-brand-ember">What happens next</p><p>Pay only the amount shown in your secure payment instructions, then submit payment evidence. A seat is confirmed only after manual verification.</p></div><label className="registration-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} aria-invalid={Boolean(errors.consent)} /><span>I confirm these details are accurate and may be used for registration-related communication.</span></label>{errors.consent && <p className="registration-field__error">{errors.consent}</p>}{errors.form && <p className="registration-field__error">{errors.form}</p>}<div className="registration-actions"><button type="button" className="registration-back" onClick={onBack} disabled={creating}><ArrowLeft aria-hidden /> Back</button><button type="button" className="registration-primary-action" onClick={onContinue} disabled={creating}>{creating ? <><LoaderCircle className="animate-spin" aria-hidden /> Creating payment registration…</> : <>Continue to payment <ArrowRight aria-hidden /></>}</button></div></section>;
+  return <section aria-labelledby="registration-review-title"><p className="text-eyebrow">Step 02</p><h1 id="registration-review-title" ref={heading} tabIndex={-1}>Review &amp; confirm</h1><p className="registration-step__intro">Check the essentials. Your payment registration is created only after you continue.</p><div className="registration-review"><div className="registration-review__heading"><h2>Your details</h2><button type="button" onClick={onEdit}>Edit</button></div><dl><div><dt>Full name</dt><dd>{draft.fullName}</dd></div><div><dt>Email</dt><dd>{draft.email}</dd></div><div><dt>Phone</dt><dd>{formatIndianPhone(draft.phone)}</dd></div><div><dt>College</dt><dd>{draft.college}</dd></div><div><dt>Branch</dt><dd>{draft.branch}</dd></div><div><dt>Year</dt><dd>{draft.year}</dd></div></dl></div><div className="registration-expectation"><p className="text-eyebrow">What happens next</p><p>Pay only the amount shown in your secure payment instructions (Early Bird ₹599 for the first 120 hours, then Regular ₹699), then submit payment evidence. A seat is confirmed only after manual verification.</p><p className="mt-2 text-sm">By continuing you agree to the <Link className="underline" href="/terms">registration terms</Link>, <Link className="underline" href="/privacy">privacy policy</Link>, and <Link className="underline" href="/refunds">refund policy</Link> (fees non-refundable once verified).</p></div><label className="registration-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} aria-invalid={Boolean(errors.consent)} aria-describedby={errors.consent ? "registration-consent-error" : undefined} /><span>I confirm these details are accurate and may be used for registration-related communication.</span></label>{errors.consent && <p id="registration-consent-error" role="alert" className="registration-field__error">{errors.consent}</p>}{errors.form && <p className="registration-field__error" role="alert">{errors.form}</p>}<div className="registration-actions"><button type="button" className="registration-back" onClick={onBack} disabled={creating}><ArrowLeft aria-hidden /> Back</button><button type="button" className="registration-primary-action" onClick={onContinue} disabled={creating}>{creating ? <><LoaderCircle className="animate-spin" aria-hidden /> Creating payment registration…</> : <>Continue to payment <ArrowRight aria-hidden /></>}</button></div></section>;
 }
 
 function DevPaymentPreview({ onBack, heading }: { onBack: () => void; heading: React.RefObject<HTMLHeadingElement | null> }) {

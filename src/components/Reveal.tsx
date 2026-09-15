@@ -9,10 +9,12 @@ type Props = {
   as?: "div" | "li" | "article";
   /** flip entrance (rotateY) instead of the default rise — for card grids */
   flip?: boolean;
+  /** doorway entrance (perspective settle) — for flagship section moments */
+  doorway?: boolean;
 };
 
 /** Once-only staggered scroll reveal. Decorative — content is visible without JS-motion. */
-export function Reveal({ children, delay = 0, className = "", as = "div", flip = false }: Props) {
+export function Reveal({ children, delay = 0, className = "", as = "div", flip = false, doorway = false }: Props) {
   const [element, setElement] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export function Reveal({ children, delay = 0, className = "", as = "div", flip =
     as,
     {
       ref: setElement,
-      className: `reveal${flip ? " flip-reveal" : ""} ${className}`,
+      className: `reveal${flip ? " flip-reveal" : ""}${doorway ? " doorway-reveal" : ""} ${className}`,
       style: { "--reveal-delay": `${delay}ms` } as CSSProperties,
     },
     children

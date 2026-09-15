@@ -39,16 +39,18 @@ function checkPreviewProductionInvariant() {
     payment: environment.PAYMENT_UI_PREVIEW,
     e2e: environment.PAYMENT_E2E_PREVIEW,
   };
-  environment.NODE_ENV = "production";
-  environment.REGISTRATION_PREVIEW = "1";
-  environment.PAYMENT_UI_PREVIEW = "1";
-  environment.PAYMENT_E2E_PREVIEW = "1";
-  const blocked = !isRegistrationPreviewEnabled() && !isDevPaymentPreviewEnabled() && !isDevE2EPreviewEnabled() && getDevelopmentPreviewSnapshot() === null;
-  if (original.nodeEnv === undefined) delete environment.NODE_ENV; else environment.NODE_ENV = original.nodeEnv;
-  if (original.registration === undefined) delete environment.REGISTRATION_PREVIEW; else environment.REGISTRATION_PREVIEW = original.registration;
-  if (original.payment === undefined) delete environment.PAYMENT_UI_PREVIEW; else environment.PAYMENT_UI_PREVIEW = original.payment;
-  if (original.e2e === undefined) delete environment.PAYMENT_E2E_PREVIEW; else environment.PAYMENT_E2E_PREVIEW = original.e2e;
-  return blocked;
+  try {
+    environment.NODE_ENV = "production";
+    environment.REGISTRATION_PREVIEW = "1";
+    environment.PAYMENT_UI_PREVIEW = "1";
+    environment.PAYMENT_E2E_PREVIEW = "1";
+    return !isRegistrationPreviewEnabled() && !isDevPaymentPreviewEnabled() && !isDevE2EPreviewEnabled() && getDevelopmentPreviewSnapshot() === null;
+  } finally {
+    if (original.nodeEnv === undefined) delete environment.NODE_ENV; else environment.NODE_ENV = original.nodeEnv;
+    if (original.registration === undefined) delete environment.REGISTRATION_PREVIEW; else environment.REGISTRATION_PREVIEW = original.registration;
+    if (original.payment === undefined) delete environment.PAYMENT_UI_PREVIEW; else environment.PAYMENT_UI_PREVIEW = original.payment;
+    if (original.e2e === undefined) delete environment.PAYMENT_E2E_PREVIEW; else environment.PAYMENT_E2E_PREVIEW = original.e2e;
+  }
 }
 
 function checkPaymentBuilderInvariant() {
@@ -82,9 +84,14 @@ async function checkDatabase() {
     const db = await getDb();
     await db.command({ ping: 1 });
     result("PASS", "MongoDB reachable.");
-    const names = new Set((await db.collection("registrations").indexes()).map((index) => index.name));
-    const expected = ["v2_public_id_unique", "v2_event_email_unique", "v2_event_phone_unique", "v2_idempotency_unique", "v2_transaction_reference_unique", "v2_admin_queue", "v2_access_token"];
-    const missing = expected.filter((name) => !names.has(name));
+    const registrationNames = new Set((await db.collection("registrations").indexes()).map((index) => index.name));
+    const rateLimitNames = new Set((await db.collection("rate_limits").indexes()).map((index) => index.name));
+    const expectedRegistrations = ["v2_public_id_unique", "v2_event_email_unique", "v2_event_phone_unique", "v2_idempotency_unique", "v2_transaction_reference_unique", "v2_admin_queue", "v2_access_token", "v2_created_at"];
+    const expectedRateLimits = ["rate_limit_expiry", "rate_limit_key"];
+    const missing = [
+      ...expectedRegistrations.filter((name) => !registrationNames.has(name)),
+      ...expectedRateLimits.filter((name) => !rateLimitNames.has(name)),
+    ];
     if (missing.length) result("BLOCKER", "Required current-registration indexes are missing. Run a safe application request in the target environment before launch.");
     else result("PASS", "Current-registration indexes are present.");
     const testRecords = await db.collection("registrations").countDocuments({ schemaVersion: 2, isTest: true, environment: "development" });

@@ -13,11 +13,11 @@ export type RegistrationFormConfig = {
  * Keep this minimal until an organizer confirms a real operational need.
  */
 export const registrationForm = {
-  collectCollege: false,
-  collegeRequired: false,
+  collectCollege: true,
+  collegeRequired: true,
   fixedCollege: null,
-  collectBranch: false,
-  branchRequired: false,
-  collectYear: false,
-  yearRequired: false,
+  collectBranch: true,
+  branchRequired: true,
+  collectYear: true,
+  yearRequired: true,
 } as const satisfies RegistrationFormConfig;
