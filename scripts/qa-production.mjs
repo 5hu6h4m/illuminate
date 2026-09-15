@@ -15,6 +15,7 @@ function run(label, command, args) {
 }
 
 console.log("Illuminate Production QA");
+run("[Unit] payment + duplicate policy", node, ["--import", "./scripts/register-dev-ts-loader.mjs", "--test", "tests/registration-duplicate-policy.test.mjs", "tests/payment-pricing.test.mjs", "tests/payment-core.test.mjs", "tests/registration-details.test.mjs"]);
 run("[Static] lint", node, [join(project, "node_modules", "eslint", "bin", "eslint.js")]);
 run("[Static] typecheck", node, [join(project, "node_modules", "typescript", "bin", "tsc"), "--noEmit"]);
 run("[Build] production build", node, [join(project, "node_modules", "next", "dist", "bin", "next"), "build"]);

@@ -74,7 +74,11 @@ export function SitePreloader() {
   return (
     <div className={`site-preloader${phase === "leaving" ? " is-leaving" : ""}`} role="status" aria-label="Loading Illuminate">
       <div className="site-preloader__inner">
-        <Image src="/images/logo2.png" alt="Illuminate" width={948} height={345} className="site-preloader__logo" priority />
+        <div className="site-preloader__lockup">
+          <Image src="/images/logo2.png" alt="Illuminate" width={948} height={345} className="site-preloader__logo" priority />
+          <span aria-hidden="true" className="site-preloader__x">×</span>
+          <Image src="/images/ecell-logo.png" alt="E-Cell MET" width={500} height={500} className="site-preloader__met" priority />
+        </div>
         <span className="site-preloader__seam" aria-hidden="true" />
         <span className="site-preloader__caption">Igniting ideas</span>
       </div>

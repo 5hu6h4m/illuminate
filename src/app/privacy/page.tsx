@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { event } from "@/config/event";
+import { PolicyShell } from "@/components/PolicyShell";
 
 export const metadata: Metadata = { title: "Privacy | Illuminate", robots: { index: true, follow: true } };
 
 export default function PrivacyPage() {
-  return <main className="mx-auto max-w-3xl px-5 py-16 md:py-24">
-    <p className="text-eyebrow text-brand-electric">Illuminate 2026</p>
-    <h1 className="mt-3 text-display">Privacy</h1>
+  return <PolicyShell eyebrow="Illuminate 2026" title="Privacy">
     <div className="mt-8 space-y-6 text-text-secondary">
       <p>We collect only information necessary to manage your Illuminate registration, verify payment, communicate event updates, and complete legitimate event administration.</p>
       <section><h2 className="text-xl font-semibold text-text-primary">Information used for registration</h2><p className="mt-2">This can include your name, email address, phone number, approved academic details where requested, UPI transaction/reference ID, and payment proof.</p></section>
@@ -16,5 +15,5 @@ export default function PrivacyPage() {
       <section><h2 className="text-xl font-semibold text-text-primary">Questions</h2><p className="mt-2">For privacy or registration questions, contact {event.contacts.organizer.value} at <a className="underline" href={`mailto:${event.contacts.support.value}`}>{event.contacts.support.value}</a>.</p></section>
     </div>
     <p className="mt-10 text-sm"><Link className="underline" href="/terms">Read the registration terms</Link> <span aria-hidden>·</span> <Link className="underline" href="/refunds">Refund information</Link></p>
-  </main>;
+  </PolicyShell>;
 }

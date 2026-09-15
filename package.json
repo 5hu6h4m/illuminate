@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:payment-policy": "node --test tests/registration-duplicate-policy.test.mjs tests/payment-pricing.test.mjs",
+    "test:payment-policy": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/registration-duplicate-policy.test.mjs tests/payment-pricing.test.mjs tests/payment-core.test.mjs tests/registration-details.test.mjs",
+    "test": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/registration-duplicate-policy.test.mjs tests/payment-pricing.test.mjs tests/payment-core.test.mjs tests/registration-details.test.mjs",
     "dev:test-payment-e2e": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/dev-test-payment-e2e.mts",
     "launch:check": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/launch-check.mts",
     "qa:production": "node scripts/qa-production.mjs",
@@ -16,7 +17,9 @@
     "dev:clear-payment-tests": "node --env-file-if-exists=.env.local scripts/clear-development-payment-tests.mjs"
   },
   "dependencies": {
+    "@opencode-ai/plugin": "^1.18.31",
     "@types/qrcode": "^1.5.6",
+    "ecc-universal": "^2.2.1",
     "lucide-react": "^1.45.0",
     "mongodb": "^7.6.0",
     "next": "16.3.5",

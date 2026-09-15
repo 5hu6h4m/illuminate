@@ -23,5 +23,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en" className={`h-full antialiased ${manrope.variable}`}><body className="min-h-full bg-ink text-cream font-body"><noscript><style>{`.reveal,.flip-reveal{opacity:1 !important;transform:none !important}`}</style></noscript>{children}</body></html>;
+  return <html lang="en" className={`h-full antialiased ${manrope.variable}`}><body className="min-h-full bg-ink text-cream font-body"><noscript><style>{`.reveal,.flip-reveal,.doorway-reveal{opacity:1 !important;transform:none !important}`}</style></noscript>{children}</body></html>;
 }

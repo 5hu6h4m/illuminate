@@ -1,0 +1,23 @@
+{
+  "brief": "Illuminate whole site redesign",
+  "maxIterations": 10,
+  "passThreshold": 7.5,
+  "weights": {
+    "designQuality": 0.35,
+    "originality": 0.3,
+    "craft": 0.25,
+    "functionality": 0.1
+  },
+  "scope": [
+    "/",
+    "/register",
+    "/success",
+    "/admin",
+    "/terms",
+    "/privacy",
+    "/refunds",
+    "/registration"
+  ],
+  "startedAt": "2026-09-15T07:21:23.015Z",
+  "status": "ready — run Generator → Evaluator loop in your agent session"
+}

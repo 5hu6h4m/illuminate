@@ -10,7 +10,12 @@ import { createRegistrationDetailsSchema, emptyRegistrationDetails, formatIndian
 type Field = keyof RegistrationDetailsDraft;
 const schema = createRegistrationDetailsSchema();
 const steps = ["Details", "Review", "Payment"];
-const newIdempotencyKey = () => crypto.randomUUID();
+const newIdempotencyKey = () => {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  } catch { /* fall through to fallback */ }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`;
+};
 const registrationCreationMessages: Record<string, string> = {
   REGISTRATION_ALREADY_STARTED: "A registration is already in progress for these details. Continue using your secure registration link, or contact E-Cell MET Team at met.iot.ecell@gmail.com if you no longer have it.",
   REGISTRATION_REQUIRES_ACTION: "A registration needs action. Use your existing secure registration link to resubmit payment proof, or contact E-Cell MET Team at met.iot.ecell@gmail.com if you no longer have it.",
@@ -21,7 +26,13 @@ const registrationCreationMessages: Record<string, string> = {
 function errorMap(value: RegistrationDetailsDraft) {
   const parsed = schema.safeParse(value);
   if (parsed.success) return {} as Partial<Record<Field, string>>;
-  return parsed.error.issues.reduce<Partial<Record<Field, string>>>((out, issue) => ({ ...out, [issue.path[0] as Field]: issue.message }), {});
+  const out: Partial<Record<Field, string>> = {};
+  for (const issue of parsed.error.issues) {
+    const key = issue.path[0] as Field | undefined;
+    if (key && !out[key]) out[key] = issue.message;
+    else if (!key && !out.fullName) out.fullName = issue.message;
+  }
+  return out;
 }
 
 export function RegistrationWizard({ preview, e2ePreview = false }: { preview: boolean; e2ePreview?: boolean }) {
@@ -77,7 +88,7 @@ function Details({ draft, errors, setField, onSubmit, heading }: { draft: Regist
 }
 
 function Review({ draft, consent, errors, setConsent, onBack, onEdit, onContinue, creating, heading }: { draft: RegistrationDetails; consent: boolean; errors: Partial<Record<Field | "consent" | "form", string>>; setConsent: (value: boolean) => void; onBack: () => void; onEdit: () => void; onContinue: () => void; creating: boolean; heading: React.RefObject<HTMLHeadingElement | null> }) {
-  return <section aria-labelledby="registration-review-title"><p className="text-eyebrow">Step 02</p><h1 id="registration-review-title" ref={heading} tabIndex={-1}>Review &amp; confirm</h1><p className="registration-step__intro">Check the essentials. Your payment registration is created only after you continue.</p><div className="registration-review"><div className="registration-review__heading"><h2>Your details</h2><button type="button" onClick={onEdit}>Edit</button></div><dl><div><dt>Full name</dt><dd>{draft.fullName}</dd></div><div><dt>Email</dt><dd>{draft.email}</dd></div><div><dt>Phone</dt><dd>{formatIndianPhone(draft.phone)}</dd></div><div><dt>College</dt><dd>{draft.college}</dd></div><div><dt>Branch</dt><dd>{draft.branch}</dd></div><div><dt>Year</dt><dd>{draft.year}</dd></div></dl></div><div className="registration-expectation"><p className="text-eyebrow">What happens next</p><p>Pay only the amount shown in your secure payment instructions, then submit payment evidence. A seat is confirmed only after manual verification.</p></div><label className="registration-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} aria-invalid={Boolean(errors.consent)} /><span>I confirm these details are accurate and may be used for registration-related communication.</span></label>{errors.consent && <p className="registration-field__error">{errors.consent}</p>}{errors.form && <p className="registration-field__error">{errors.form}</p>}<div className="registration-actions"><button type="button" className="registration-back" onClick={onBack} disabled={creating}><ArrowLeft aria-hidden /> Back</button><button type="button" className="registration-primary-action" onClick={onContinue} disabled={creating}>{creating ? <><LoaderCircle className="animate-spin" aria-hidden /> Creating payment registration…</> : <>Continue to payment <ArrowRight aria-hidden /></>}</button></div></section>;
+  return <section aria-labelledby="registration-review-title"><p className="text-eyebrow">Step 02</p><h1 id="registration-review-title" ref={heading} tabIndex={-1}>Review &amp; confirm</h1><p className="registration-step__intro">Check the essentials. Your payment registration is created only after you continue.</p><div className="registration-review"><div className="registration-review__heading"><h2>Your details</h2><button type="button" onClick={onEdit}>Edit</button></div><dl><div><dt>Full name</dt><dd>{draft.fullName}</dd></div><div><dt>Email</dt><dd>{draft.email}</dd></div><div><dt>Phone</dt><dd>{formatIndianPhone(draft.phone)}</dd></div><div><dt>College</dt><dd>{draft.college}</dd></div><div><dt>Branch</dt><dd>{draft.branch}</dd></div><div><dt>Year</dt><dd>{draft.year}</dd></div></dl></div><div className="registration-expectation"><p className="text-eyebrow">What happens next</p><p>Pay only the amount shown in your secure payment instructions (Early Bird ₹599 for the first 120 hours, then Regular ₹699), then submit payment evidence. A seat is confirmed only after manual verification.</p><p className="mt-2 text-sm">By continuing you agree to the <Link className="underline" href="/terms">registration terms</Link>, <Link className="underline" href="/privacy">privacy policy</Link>, and <Link className="underline" href="/refunds">refund policy</Link> (fees non-refundable once verified).</p></div><label className="registration-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} aria-invalid={Boolean(errors.consent)} aria-describedby={errors.consent ? "registration-consent-error" : undefined} /><span>I confirm these details are accurate and may be used for registration-related communication.</span></label>{errors.consent && <p id="registration-consent-error" role="alert" className="registration-field__error">{errors.consent}</p>}{errors.form && <p className="registration-field__error" role="alert">{errors.form}</p>}<div className="registration-actions"><button type="button" className="registration-back" onClick={onBack} disabled={creating}><ArrowLeft aria-hidden /> Back</button><button type="button" className="registration-primary-action" onClick={onContinue} disabled={creating}>{creating ? <><LoaderCircle className="animate-spin" aria-hidden /> Creating payment registration…</> : <>Continue to payment <ArrowRight aria-hidden /></>}</button></div></section>;
 }
 
 function DevPaymentPreview({ onBack, heading }: { onBack: () => void; heading: React.RefObject<HTMLHeadingElement | null> }) {

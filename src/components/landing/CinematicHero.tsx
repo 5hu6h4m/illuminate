@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { event, isConfirmedText, isPaymentRegistrationAvailable } from "@/config/event";
+import { calculateProductionPricing } from "@/lib/payment-pricing";
 import { Container } from "@/components/ui/Container";
 
 const HERO_VIDEO_SRC =
@@ -31,6 +32,13 @@ export function CinematicHero() {
     ...(deadline ? [`Deadline ${deadline}`] : []),
     ...(eligibility ? [eligibility] : []),
   ];
+  const pricing = calculateProductionPricing({
+    registrationOpenAt: event.registration.registrationOpenAt,
+    earlyBirdDurationHours: event.fee.pricing.earlyBirdDurationHours,
+    earlyBirdAmount: event.fee.pricing.earlyBirdAmount,
+    regularAmount: event.fee.pricing.regularAmount,
+  });
+  const earlyBirdActive = pricing.tier === "early_bird";
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [ready, setReady] = useState(false);
@@ -84,13 +92,23 @@ export function CinematicHero() {
       <Container className="cinematic-hero__content">
         <div className="cinematic-hero__copy">
           <p className="cinematic-hero__eyebrow">
-            {event.identity.name} {event.identity.edition} · E-Cell IIT Bombay × {event.organizer.name}
+            {event.identity.name} {event.identity.edition} · Associated with E-Cell IIT Bombay · {event.organizer.name}
           </p>
           <h1 id="hero-title">
             <span>Ideas deserve</span>
             <span>an ignition point.</span>
           </h1>
-          <p className="cinematic-hero__summary">{event.identity.shortDescription}</p>
+          <p className="cinematic-hero__summary">A hands-on entrepreneurship workshop. No experience needed — open to every college, branch, and year.</p>
+          <div className="cinematic-hero__price" aria-label="Ticket pricing">
+            <span className={`price-chip${earlyBirdActive ? " is-active" : ""}`}>
+              Early Bird ₹{event.fee.pricing.earlyBirdAmount.toLocaleString("en-IN")}
+              {earlyBirdActive ? <em>Active now</em> : null}
+            </span>
+            <span className={`price-chip${earlyBirdActive ? "" : " is-active"}`}>
+              Regular ₹{event.fee.pricing.regularAmount.toLocaleString("en-IN")}
+              {earlyBirdActive ? null : <em>Active now</em>}
+            </span>
+          </div>
           <p className="cinematic-hero__association">{event.association.label}</p>
           <div className="cinematic-hero__actions">
             <Link href={cta.href} className="cinematic-hero__button">
@@ -103,7 +121,7 @@ export function CinematicHero() {
           </div>
           <p className="cinematic-hero__meta" aria-label="Key event facts">
             {facts.map((fact, index) => (
-              <span key={fact}>
+              <span key={`${fact}-${index}`}>
                 {index > 0 ? <span aria-hidden="true"> · </span> : null}
                 {fact}
               </span>

@@ -13,7 +13,16 @@ export function sensitiveJson(data: unknown, init: ResponseInit = {}) {
 }
 
 export function clientIp(request: Request): string {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  // Prefer platform-specific headers when present (Vercel, Cloudflare), then
+  // fall back to the left-most X-Forwarded-For entry. Truncate to avoid
+  // unbounded key growth in rate-limit buckets.
+  const platformIp =
+    request.headers.get("x-real-ip")?.trim() ||
+    request.headers.get("cf-connecting-ip")?.trim() ||
+    "";
+  if (platformIp) return platformIp.slice(0, 64);
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  return forwarded.slice(0, 64) || "unknown";
 }
 
 export function isSameOrigin(request: Request): boolean {
