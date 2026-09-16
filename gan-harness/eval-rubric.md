@@ -1,38 +1,23 @@
-# Eval Rubric: GAN-Style Design Harness
+# Eval Rubric: GAN-Style Design Harness — DESIGN-ONLY
 
-Design-focused. Evaluator asks: "would this win a design award?" — not "do all features work?"
-Weights sum to 1.0. Weighted score is on a 0–10 scale. Default pass threshold: **7.5**.
+This rubric is for visual experimentation. Its threshold is not a production pass and can never produce production GO. It must never override security, payment integrity, registration/data integrity, content truth, accessibility blockers, reliability, or production QA.
+
+Production correctness is evaluated in this order: security; payment integrity; registration/data integrity; content truth; accessibility and critical usability; reliability; visual quality. This harness applies only to the final item.
+
+Evaluator asks: “would this win a design award?” — not “is it ready for production?” Weights sum to 1.0. Weighted score is on a 0–10 scale. Default design threshold: **7.5**.
 
 | Criterion | Weight | 10 = | 0 = |
-|---|---|---|---|
-| ### Design Quality | 0.35 | Cohesive art direction, distinctive color/type, avant-garde layout, motion with purpose | Generic Tailwind, inconsistent spacing/type |
-| ### Originality | 0.30 | Creative leap (unusual layout, custom animation, memorable moment) | Template clone, no risk |
-| ### Craft | 0.25 | Pixel precision, responsive 360→1440, keyboard + a11y, zero console errors | Broken layout, overflow, a11y failures |
-| ### Functionality | 0.10 | All routes render; register→pay→success→admin flows intact | Routes broken, flows dead |
-
-## Scoring
+|---|---:|---|---|
+| Design quality | 0.35 | Cohesive art direction and purposeful motion | Generic or inconsistent presentation |
+| Originality | 0.30 | Memorable, appropriate visual direction | Template clone |
+| Craft | 0.25 | Pixel precision and responsive polish | Broken layout or overflow |
+| Functionality | 0.10 | Routes render for design review | Routes are unusable |
 
 ```text
 weighted = 0.35*design + 0.30*originality + 0.25*craft + 0.10*functionality
-pass ⇔ weighted >= --pass-threshold (default 7.5)
+design threshold met ⇔ weighted >= --pass-threshold (default 7.5)
 ```
 
-- Originality weight is intentionally high (0.30 vs 0.20 in gan-build) to push breakthroughs.
-- Functionality weight is intentionally low (0.10) — visual excellence first.
-- A stunning half-finished app beats a functional ugly one — but build must stay clean (`npm run build`).
-- Copy must match `docs/CONTENT_TRUTH.md`; invented claims (IITB certificate, Top-30, travel, fixed seats) fail Craft regardless of visuals.
+Meeting this design threshold is insufficient for any deployment decision. Run `npm run qa:production` and `npm run launch:check` independently, and resolve every higher-priority issue first.
 
-## Generator prompt (visual excellence first)
-
-> Your PRIMARY goal is visual excellence. Implement the brief in `gan-harness/spec.md`
-> across ALL routes. Push for creative leaps — unusual layouts, custom animations,
-> distinctive color work. Keep `src/config/event.ts` as truth, respect Boundaries,
-> keep `npm run build` clean. Output what changed + files touched.
-
-## Evaluator prompt (award test)
-
-> Score the whole site 0–10 on Design Quality (0.35), Originality (0.30), Craft (0.25),
-> Functionality (0.10). Would this win a design award? Show math:
-> `weighted = 0.35*D + 0.30*O + 0.25*C + 0.10*F`. Pass ⇔ weighted >= threshold.
-> List the single biggest visual upgrade for the next iteration. Be strict on
-> generic work; reward risk that lands.
+Copy must match `docs/CONTENT_TRUTH.md`; invented claims (IITB certificate, Top-30, travel, fixed seats) fail the design review regardless of visuals.

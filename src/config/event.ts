@@ -15,6 +15,7 @@ export const event = {
     edition: "2026",
     shortDescription: "An entrepreneurship workshop experience by E-Cell MET.",
   },
+  format: { value: "Offline workshop", confirmation: "confirmed" as const },
   organizer: { name: "E-Cell MET", confirmation: "confirmed" },
   association: {
     label: "Associated with the Illuminate initiative of E-Cell IIT Bombay",
@@ -27,14 +28,11 @@ export const event = {
     duration: { value: null, confirmation: "pending" },
   },
   registration: {
-    // Deliberate activation timestamp: never reset this on deployment.
-    status: "open" as const,
-    registrationOpenAt: "2026-09-14T14:32:12.635Z",
-    deadline: { value: "29 September 2026", confirmation: "confirmed" },
+    deadline: { value: null, confirmation: "pending" },
     capacity: { value: null, confirmation: "pending" },
     eligibility: { value: "Open to everyone", confirmation: "confirmed" },
   },
-  fee: { currency: "INR", confirmation: "confirmed" as const, pricing: { earlyBirdAmount: 599, regularAmount: 699, earlyBirdDurationHours: 120 } },
+  fee: { currency: "INR", confirmation: "confirmed" as const, pricing: { earlyBirdAmount: 599, regularAmount: 699 } },
   benefits: {
     certificate: { value: null, confirmation: "pending" },
     participantKit: { value: null, confirmation: "pending" },
@@ -58,12 +56,10 @@ export const event = {
   },
 } as const;
 
-export const isRegistrationOpen = (event.registration.status as string) === "open";
 export const isConfirmed = (fact: { confirmation: ConfirmationState }) => fact.confirmation === "confirmed";
 export const isConfirmedText = (fact: { value: string | null; confirmation: ConfirmationState }) =>
   isConfirmed(fact) && Boolean(fact.value?.trim());
 export const isPaymentRegistrationAvailable = () =>
-  isRegistrationOpen &&
   isConfirmed(event.fee) &&
   event.fee.pricing.earlyBirdAmount > 0 &&
   event.fee.pricing.regularAmount > 0 &&

@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 import { Readable } from "stream";
-import { getConfirmedPaymentSnapshot, isDevE2EPreviewEnabled, isValidParticipantAccessToken } from "@/lib/payment";
+import { isDevE2EPreviewEnabled, isValidParticipantAccessToken } from "@/lib/payment";
 import { getDb, getPaymentProofBucket, isDbConfigured } from "@/lib/mongodb";
 import { apiError, sensitiveJson } from "@/lib/http";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -10,13 +10,12 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  if (!getConfirmedPaymentSnapshot() && !isDevE2EPreviewEnabled()) return apiError(503, "PAYMENT_NOT_AVAILABLE", "Payment proof submission is not available yet.");
   if (!isDbConfigured() || !isValidParticipantAccessToken(token)) return apiError(404, "INVALID_STATUS_TOKEN", "Not found.");
   try {
     if (!await enforceRateLimit("proof-submit", token, 8, 15 * 60_000)) return apiError(429, "RATE_LIMITED", "Too many attempts. Please try again shortly.");
     const registration = await registrationForParticipantToken(token);
     if (!registration) return apiError(404, "INVALID_STATUS_TOKEN", "Not found.");
-    if (registration.isTest ? !isDevE2EPreviewEnabled() : !getConfirmedPaymentSnapshot()) return apiError(503, "PAYMENT_NOT_AVAILABLE", "Payment proof submission is not available yet.");
+    if (registration.isTest ? !isDevE2EPreviewEnabled() : registration.payment.snapshot.mode !== "production") return apiError(503, "PAYMENT_NOT_AVAILABLE", "Payment proof submission is not available yet.");
     const form = await request.formData();
     const referenceInput = form.get("transactionReference");
     const proof = form.get("proof");

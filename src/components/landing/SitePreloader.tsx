@@ -3,9 +3,9 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
-const MIN_DISPLAY_MS = 1800;
-const MAX_WAIT_MS = 5000;
-const EXIT_MS = 700;
+const MIN_DISPLAY_MS = 500;
+const MAX_WAIT_MS = 1200;
+const EXIT_MS = 180;
 
 /**
  * Full-site preloader: brand moment over the whole landing until the page
@@ -19,7 +19,7 @@ export function SitePreloader() {
   useEffect(() => {
     const startedAt = Date.now();
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const min = reduced ? 400 : MIN_DISPLAY_MS;
+    const min = reduced ? 0 : MIN_DISPLAY_MS;
     let leaving = false;
     let exitTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -48,7 +48,7 @@ export function SitePreloader() {
     };
     window.addEventListener("load", onLoad);
     window.addEventListener("illuminate:hero-ready", onHero);
-    const maxTimer = window.setTimeout(leave, MAX_WAIT_MS);
+    const maxTimer = window.setTimeout(leave, reduced ? 250 : MAX_WAIT_MS);
 
     const prevOverflowBackup = document.body.style.overflow;
     prevOverflow.current = prevOverflowBackup;

@@ -9,13 +9,13 @@ Status legend: **PASS** = verified in code or an executed check; **PENDING CONFI
 ## A. Event Content
 
 - **PASS** Illuminate 2026, E-Cell MET, and the approved association wording are the only organizational claims.
-- **PASS** Registration is open to everyone. Public registration deadline: 29 September 2026.
-- **PENDING CONFIGURATION** Event date, time, venue, capacity, exact closing time, and unconfirmed benefits remain unpublished.
+- **PASS** Registration is open to everyone when the organizer enables it. No public automatic closing date/time is claimed.
+- **PENDING CONFIGURATION** Event date, time, venue, capacity, and unconfirmed benefits remain unpublished.
 
 ## B. Registration and Payment
 
 - **PASS** Server-side creation validates details, uses idempotency, duplicate protection, MongoDB persistence, and immutable payment snapshots.
-- **PASS** ₹599 Early Bird applies for the first 120 hours from `event.registration.registrationOpenAt`; ₹699 Regular applies at and after the exact server-side cutoff. Client values cannot select price or tier.
+- **PENDING CONFIGURATION** Server-only `REGISTRATION_OPEN` controls new registration availability and `REGISTRATION_PRICE_TIER` selects either ₹599 Early Bird or ₹699 Regular. Client values cannot select price or tier, and missing or invalid controls keep production payment registration unavailable.
 - **PASS** Canonical INR direct UPI recipient: Yash Patil / `yashpatil76317@okicici`. Display, QR, deep link, and snapshot use the same trusted source.
 - **PASS** Payment proof is evidence only. Manual account verification remains required before a real seat is confirmed.
 - **PENDING CONFIGURATION** No approved expiry policy exists for abandoned payment-pending registrations. Do not invent one.
@@ -45,11 +45,11 @@ Status legend: **PASS** = verified in code or an executed check; **PENDING CONFI
 
 ## E. Required launch actions
 
-1. Configure `MONGODB_URI`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET`, and `PARTICIPANT_TOKEN_SECRET` in the production secret store.
+1. Configure `MONGODB_URI`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET`, `PARTICIPANT_TOKEN_SECRET`, `REGISTRATION_OPEN`, and `REGISTRATION_PRICE_TIER` in the production secret store.
 2. Run `npm run qa:production` and `npm run launch:check` with deployment-equivalent configuration.
 3. Confirm hosting supports Node route handlers, MongoDB/GridFS, at least 4 MB multipart uploads, HTTPS, and backups.
 4. Scan the real QR on a phone, inspect recipient, amount, note and deep link, then cancel before payment.
-5. Publish event date, time, venue, and exact closing time only after organizer confirmation.
+5. Publish event date, time, and venue only after organizer confirmation.
 
 ## Commands
 
@@ -57,3 +57,7 @@ Status legend: **PASS** = verified in code or an executed check; **PENDING CONFI
 - `npm run launch:check` — non-destructive environment/config/database/index/payment checks; never enables payment or changes data.
 - `npm run dev:test-payment-e2e` — development-only synthetic Mongo/GridFS lifecycle QA; refuses production and cleans only its own data.
 - `npm run dev:clear-payment-tests` — development-only cleanup of explicitly marked test records; refuses production.
+
+## Production acceptance hierarchy
+
+Production correctness is evaluated in this order: (1) security, (2) payment integrity, (3) registration/data integrity, (4) content truth, (5) accessibility and critical usability, (6) reliability, then (7) visual quality. Design tooling may improve visual quality only; it cannot waive items 1–6 or produce production GO.

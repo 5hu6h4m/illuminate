@@ -4,8 +4,8 @@ export const workshopJourney = [
   { number: "01", title: "Doors open & ignition", copy: "Check in, meet your cohort, and set the question you want to explore." },
   { number: "02", title: "Finding problems worth solving", copy: "Learn how founders spot real problems before jumping to solutions." },
   { number: "03", title: "From idea to frame", copy: "Shape a loose thought into a clear problem, user, and direction." },
-  { number: "04", title: "Build, test, iterate", copy: "Hands-on working session with mentors to stress-test your direction." },
-  { number: "05", title: "Pitch & perspective", copy: "Share your frame, get structured feedback, and see other approaches." },
+  { number: "04", title: "Build, test, iterate", copy: "Guided working session to stress-test your direction." },
+  { number: "05", title: "Pitch & perspective", copy: "Share your frame, take part in structured discussion, and see other approaches." },
   { number: "06", title: "Next move & close", copy: "Leave with a sharper next step, connections, and next-move clarity." },
 ] as const;
 
@@ -18,8 +18,8 @@ export const faqItems = [
   { question: "Who is organising it?", answer: `${event.organizer.name} is the host organiser. ${event.association.label}.` },
   { question: "When and where will it take place?", answer: "The schedule and venue will be announced here once finalised. Illuminate is an interactive workshop experience hosted by E-Cell MET." },
   { question: "Who can attend?", answer: "Illuminate is open to everyone — any college, branch, or year. No prior startup experience is needed." },
-  { question: "What is the fee?", answer: "Early Bird is ₹599 for the first 120 hours (5 days) of registration, then Regular ₹699. Your exact payable amount is shown in your secure payment instructions." },
-  { question: "Will I get a certificate?", answer: "Certificate details will be listed here once confirmed with E-Cell IIT Bombay. Only confirmed inclusions are published on this site." },
+  { question: "What is the fee?", answer: "Early Bird is ₹599 during the Early Bird registration window, followed by Regular at ₹699. Your exact payable amount is shown in your secure payment instructions." },
+  { question: "Will I get a certificate?", answer: "Certificate details will be listed here if confirmed. Only confirmed inclusions are published on this site." },
   { question: "What is the timing of the workshop?", answer: "Session flow and reporting time will be announced with the confirmed schedule." },
   { question: "How will payment work?", answer: "You will receive direct UPI instructions after registration. Pay exactly the shown amount, submit payment evidence, and your seat is confirmed only after manual verification. Your private status link shows real-time verification status." },
   { question: "Is the fee refundable?", answer: "Registration fees are non-refundable once payment has been verified." },

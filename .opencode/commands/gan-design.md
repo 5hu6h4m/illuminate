@@ -1,5 +1,7 @@
 ---
-description: GAN-style whole-website design loop (Generator + Evaluator, no planner)
+description: DESIGN-ONLY GAN-style whole-website exploration loop
 ---
 
-Parse `brief` (required), `--max-iterations N` (default 10), `--pass-threshold N` (default 7.5) via `node scripts/gan-design.mjs`. The brief IS the spec (`gan-harness/spec.md`). No planner. Loop Generator (visual excellence first: stunning half-finished beats functional ugly, push creative leaps) → Evaluator (`gan-harness/eval-rubric.md`: Design 0.35 / Originality 0.30 / Craft 0.25 / Functionality 0.10, pass ⇔ weighted >= threshold, "would this win a design award?") across ALL routes until pass or max iterations. Respect `docs/CONTENT_TRUTH.md` and `src/config/event.ts`; keep `npm run build` clean.
+This command is for design experimentation only. It is not a production-readiness authority and must never override security, payment correctness, registration/data integrity, content truth, accessibility blockers, reliability, or production QA. A design score can never produce production GO.
+
+Parse `brief` (required), `--max-iterations N` (default 10), and `--pass-threshold N` (default 7.5) via `node scripts/gan-design.mjs`. The brief is saved to `gan-harness/spec.md`. The Generator/Evaluator loop uses `gan-harness/eval-rubric.md` solely to improve visual quality. Respect `docs/CONTENT_TRUTH.md` and `src/config/event.ts`; keep `npm run build` clean. Production acceptance remains governed by `npm run qa:production`, `npm run launch:check`, and the hierarchy in `docs/PHASE_5_PRODUCTION_READINESS.md`.

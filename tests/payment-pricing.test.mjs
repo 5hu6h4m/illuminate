@@ -1,24 +1,28 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateProductionPricing, sumVerifiedSnapshotRevenue } from "../src/lib/payment-pricing.ts";
+import { resolveManualPricing, sumVerifiedSnapshotRevenue } from "../src/lib/payment-pricing.ts";
 
 const pricing = {
-  registrationOpenAt: "2026-09-14T14:32:12.635Z",
-  earlyBirdDurationHours: 120,
   earlyBirdAmount: 599,
   regularAmount: 699,
 };
-const cutoff = new Date("2026-09-19T14:32:12.635Z");
 
-test("uses Early Bird pricing one second before the derived cutoff", () => {
-  const result = calculateProductionPricing(pricing, new Date(cutoff.getTime() - 1000));
+test("maps the organizer-selected Early Bird tier to the configured amount", () => {
+  const result = resolveManualPricing({ ...pricing, tier: "early_bird" });
   assert.equal(result.tier, "early_bird");
   assert.equal(result.amount, 599);
 });
 
-test("uses Regular pricing exactly at and after the derived cutoff", () => {
-  assert.equal(calculateProductionPricing(pricing, cutoff).amount, 699);
-  assert.equal(calculateProductionPricing(pricing, new Date(cutoff.getTime() + 1000)).amount, 699);
+test("maps the organizer-selected Regular tier to the configured amount", () => {
+  const result = resolveManualPricing({ ...pricing, tier: "regular" });
+  assert.equal(result.tier, "regular");
+  assert.equal(result.amount, 699);
+});
+
+test("rejects invalid manual tier or amount configuration", () => {
+  assert.throws(() => resolveManualPricing({ ...pricing, tier: "other" }), /invalid/i);
+  assert.throws(() => resolveManualPricing({ ...pricing, tier: "early_bird", earlyBirdAmount: 0 }), /invalid/i);
+  assert.throws(() => resolveManualPricing({ ...pricing, tier: "regular", regularAmount: -1 }), /invalid/i);
 });
 
 test("calculates verified revenue from immutable snapshots and excludes test records", () => {

@@ -1,6 +1,7 @@
 import { event, isPaymentRegistrationAvailable } from "@/config/event";
 import { getDb, isDbConfigured } from "@/lib/mongodb";
-import { buildUpiUri, getConfirmedPaymentSnapshot, getDevelopmentPreviewSnapshot, isDevE2EPreviewEnabled, isDevPaymentPreviewEnabled } from "@/lib/payment";
+import { buildUpiUri, getConfirmedPaymentSnapshot, getDevelopmentPreviewSnapshot, isDevE2EPreviewEnabled, isDevPaymentPreviewEnabled, parseRegistrationOpen, parseRegistrationPriceTier } from "@/lib/payment";
+import { resolveManualPricing } from "@/lib/payment-pricing";
 import { isRegistrationPreviewEnabled } from "@/lib/registration-preview";
 
 type Level = "PASS" | "PENDING" | "BLOCKER";
@@ -15,7 +16,7 @@ function result(level: Level, message: string) {
 
 function hasUsableAdminHash() {
   const value = process.env.ADMIN_PASSWORD_HASH?.trim() ?? "";
-  const [kind, salt, hash] = value.split("$");
+  const [kind, salt, hash] = value.split(/[$:]/);
   return kind === "scrypt" && Boolean(salt) && Boolean(hash);
 }
 
@@ -28,7 +29,7 @@ function hasProductionEmailConfiguration() {
   const replyTo = process.env.RESEND_REPLY_TO_EMAIL?.trim();
   const baseUrl = process.env.APP_BASE_URL?.trim();
   if (!apiKey || !from || !replyTo || !baseUrl) return false;
-  try { return process.env.NODE_ENV !== "production" || new URL(baseUrl).protocol === "https:"; } catch { return false; }
+  try { return new URL(baseUrl).protocol === "https:"; } catch { return false; }
 }
 
 function checkPreviewProductionInvariant() {
@@ -63,8 +64,6 @@ function checkPaymentBuilderInvariant() {
     mode: "production",
     pricingTier: "early_bird",
     calculatedAt: "2026-01-01T00:00:00.000Z",
-    registrationOpenAt: "2026-01-01T00:00:00.000Z",
-    earlyBirdEndsAt: "2026-01-06T00:00:00.000Z",
   }, "ILL26-ABC123");
   const query = new URL(uri).searchParams;
   return uri.startsWith("upi://pay?")
@@ -110,19 +109,27 @@ async function run() {
   const participantSecretConfigured = hasSufficientSecret("PARTICIPANT_TOKEN_SECRET");
   const previewInvariant = checkPreviewProductionInvariant();
   const paymentBuilderInvariant = checkPaymentBuilderInvariant();
-  const paymentAvailable = isPaymentRegistrationAvailable() && getConfirmedPaymentSnapshot() !== null;
+  const registrationOpen = parseRegistrationOpen(process.env.REGISTRATION_OPEN);
+  const priceTier = parseRegistrationPriceTier(process.env.REGISTRATION_PRICE_TIER);
+  const configuredPricing = priceTier
+    ? resolveManualPricing({ tier: priceTier, earlyBirdAmount: event.fee.pricing.earlyBirdAmount, regularAmount: event.fee.pricing.regularAmount })
+    : null;
+  const paymentSnapshot = getConfirmedPaymentSnapshot();
   result(adminHashConfigured ? "PASS" : "BLOCKER", adminHashConfigured ? "Admin password hash configured." : "ADMIN_PASSWORD_HASH is missing or malformed.");
   result(adminSessionConfigured ? "PASS" : "BLOCKER", adminSessionConfigured ? "Admin session secret configured." : "ADMIN_SESSION_SECRET must be at least 32 characters.");
   result(participantSecretConfigured ? "PASS" : "BLOCKER", participantSecretConfigured ? "Participant token secret configured." : "PARTICIPANT_TOKEN_SECRET must be at least 32 characters.");
   result(previewInvariant ? "PASS" : "BLOCKER", previewInvariant ? "Preview flags are hard-disabled when NODE_ENV is production." : "Production preview invariant failed.");
   result(paymentBuilderInvariant ? "PASS" : "BLOCKER", paymentBuilderInvariant ? "Canonical UPI URI builder preserves encoded fixture facts." : "Canonical UPI URI invariant failed.");
-  result(paymentAvailable ? "PASS" : "BLOCKER", paymentAvailable ? "Confirmed payment configuration can create canonical payment snapshots." : "Confirmed payment configuration is incomplete or its payment snapshot could not be created.");
+  result(registrationOpen !== null ? "PASS" : "BLOCKER", registrationOpen !== null ? `REGISTRATION_OPEN is valid (${registrationOpen ? "open" : "closed"}).` : "REGISTRATION_OPEN must be exactly true or false; new payment registrations remain unavailable.");
+  result(priceTier && configuredPricing ? "PASS" : "BLOCKER", priceTier && configuredPricing ? `REGISTRATION_PRICE_TIER is valid and maps to INR ${configuredPricing.amount}.` : "REGISTRATION_PRICE_TIER must be early_bird or regular; new payment registrations remain unavailable.");
+  const paymentSnapshotValid = isPaymentRegistrationAvailable() && registrationOpen === true && Boolean(configuredPricing) && paymentSnapshot?.pricingTier === configuredPricing?.tier && paymentSnapshot?.expectedAmount === configuredPricing?.amount;
+  const manualCloseSafe = isPaymentRegistrationAvailable() && registrationOpen === false && paymentSnapshot === null;
+  result(registrationOpen === false ? (manualCloseSafe ? "PASS" : "BLOCKER") : (paymentSnapshotValid ? "PASS" : "BLOCKER"), registrationOpen === false ? (manualCloseSafe ? "Manual close safely prevents new payment registrations." : "Manual close safety check failed.") : (paymentSnapshotValid ? "Confirmed payment configuration creates the organizer-selected canonical snapshot." : "Confirmed payment configuration is incomplete or its canonical snapshot could not be created."));
   result(hasProductionEmailConfiguration() ? "PASS" : "PENDING", hasProductionEmailConfiguration() ? "Transactional email configuration is present." : "Transactional email configuration incomplete (RESEND_API_KEY, RESEND_FROM_EMAIL, RESEND_REPLY_TO_EMAIL, and APP_BASE_URL are required for delivery).");
   await checkDatabase();
 
   const configurationFacts = [
-    [String(event.registration.status) === "open", "Registration open state"],
-    [String(event.fee.confirmation) === "confirmed" && event.fee.pricing.earlyBirdAmount === 599 && event.fee.pricing.regularAmount === 699 && event.fee.pricing.earlyBirdDurationHours === 120 && Boolean(event.registration.registrationOpenAt), "Early Bird (₹599 / first 120 hours) and Regular (₹699) pricing"],
+    [String(event.fee.confirmation) === "confirmed" && event.fee.pricing.earlyBirdAmount === 599 && event.fee.pricing.regularAmount === 699, "Early Bird (INR 599) and Regular (INR 699) pricing"],
     [String(event.payment.recipient.confirmation) === "confirmed", "Payee name"],
     [String(event.payment.upiId.confirmation) === "confirmed", "UPI ID"],
     [String(event.payment.refundPolicy.confirmation) === "confirmed", "Refund/cancellation policy"],
@@ -140,7 +147,7 @@ async function run() {
     const configured = String(fact.confirmation) === "confirmed";
     result(configured ? "PASS" : "PENDING", configured ? `${label} configured.` : `${label} remains intentionally pending.`);
   }
-  result("PENDING", "Exact registration closing time remains intentionally pending; the public deadline is 29 September 2026.");
+  result("PASS", "Registration availability is manually controlled; no scheduled opening or closing timestamp is used.");
 
   console.log(`\nRESULT: ${blockers ? "NO-GO" : pending ? "TECHNICALLY READY — EVENT CONFIGURATION INCOMPLETE" : "READY"}`);
   if (blockers) process.exitCode = 1;

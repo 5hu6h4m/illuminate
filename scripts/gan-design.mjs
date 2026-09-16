@@ -113,7 +113,8 @@ if (isMain || process.argv[1]?.endsWith("gan-design.mjs")) {
     };
     writeFileSync(join(project, "gan-harness", "run.json"), `${JSON.stringify(runState, null, 2)}\n`);
 
-    console.log("GAN Design Harness — whole website");
+    console.log("GAN Design Harness — DESIGN-ONLY experimentation");
+    console.log("- A design threshold is not a production acceptance result and cannot produce production GO.");
     console.log(`- brief: ${brief.slice(0, 200)}${brief.length > 200 ? "…" : ""}`);
     console.log(`- max-iterations: ${maxIterations}`);
     console.log(`- pass-threshold: ${passThreshold}`);
@@ -125,8 +126,8 @@ if (isMain || process.argv[1]?.endsWith("gan-design.mjs")) {
       console.log(`     Evaluator: score D/O/C/F, weighted >= ${passThreshold} to pass.`);
     }
     if (maxIterations > 3) console.log(`  … up to ${maxIterations} iterations until weighted >= ${passThreshold}.`);
-    console.log("\nGenerator prompt: PRIMARY goal is visual excellence. Stunning half-finished beats functional ugly.");
-    console.log("Evaluator prompt: would this win a design award? Show weighted math.");
+    console.log("\nGenerator prompt: PRIMARY goal is visual excellence within the production safety baseline.");
+    console.log("Evaluator prompt: design-only score; it never waives security, payment, registration, content, accessibility, or production QA.");
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;

@@ -13,21 +13,30 @@ type Props = {
   doorway?: boolean;
 };
 
-/** Once-only staggered scroll reveal. Decorative — content is visible without JS-motion. */
+/** Once-only decorative reveal. Content stays visible until client motion is ready. */
 export function Reveal({ children, delay = 0, className = "", as = "div", flip = false, doorway = false }: Props) {
   const [element, setElement] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!element) return;
-    if (typeof IntersectionObserver === "undefined") {
-      element.classList.add("is-visible");
+    const reveal = () => element.classList.add("is-visible");
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      reveal();
       return;
     }
+
+    element.classList.add("is-motion-ready");
+    if (typeof IntersectionObserver === "undefined") {
+      reveal();
+      return;
+    }
+
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
           if (e.isIntersecting) {
-            e.target.classList.add("is-visible");
+            reveal();
             io.unobserve(e.target);
           }
         });
@@ -35,7 +44,11 @@ export function Reveal({ children, delay = 0, className = "", as = "div", flip =
       { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
     );
     io.observe(element);
-    return () => io.disconnect();
+    const safetyTimer = window.setTimeout(reveal, 900);
+    return () => {
+      io.disconnect();
+      window.clearTimeout(safetyTimer);
+    };
   }, [element]);
 
   return createElement(
