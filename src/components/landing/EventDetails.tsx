@@ -1,3 +1,4 @@
+import { Container } from "@/components/ui/Container";
 import { event, isConfirmedText } from "@/config/event";
 import { illuminateContent } from "@/content/illuminate";
 
@@ -11,7 +12,7 @@ export function EventDetails() {
 
   return (
     <section id="event-details" className="landing-section event-details" aria-labelledby="event-details-title">
-      <div className="container">
+      <Container>
         <div className="event-details__sheet">
           <header className="event-details__header">
             <p className="text-eyebrow">Event details</p>
@@ -32,7 +33,7 @@ export function EventDetails() {
             <div><dt>Facilitator</dt><dd>{facilitator}</dd></div>
           </dl>
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

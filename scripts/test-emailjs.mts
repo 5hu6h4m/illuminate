@@ -11,6 +11,8 @@ if (!targetEmail) {
   process.exit(1);
 }
 
+// @ts-expect-error TS5097: explicit `.ts` extension is resolved at runtime by
+// scripts/register-dev-ts-loader.mjs; tsc flags it without allowImportingTsExtensions.
 const { buildEmailJSPayload } = await import("../src/lib/email/transactional-email.ts");
 
 const mockConfig = {

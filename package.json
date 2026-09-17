@@ -13,10 +13,11 @@
     "test:content": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/content-foundation.test.mjs",
     "test:font-loading": "node --test tests/font-loading.test.mjs",
     "test:emailjs": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/test-emailjs.mts",
-    "test": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/content-foundation.test.mjs tests/registration-duplicate-policy.test.mjs tests/payment-pricing.test.mjs tests/payment-core.test.mjs tests/registration-details.test.mjs tests/registration-continuation.test.mjs",
+    "test": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/content-foundation.test.mjs tests/registration-duplicate-policy.test.mjs tests/payment-pricing.test.mjs tests/payment-core.test.mjs tests/registration-details.test.mjs tests/registration-continuation.test.mjs tests/hero-words.test.mjs",
     "dev:test-payment-e2e": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/dev-test-payment-e2e.mts",
     "launch:check": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/launch-check.mts",
     "qa:production": "node scripts/qa-production.mjs",
+    "qa:responsiveness": "node scripts/evaluate-responsiveness.mjs",
     "admin:hash-password": "node scripts/hash-admin-password.mjs",
     "dev:clear-payment-tests": "node --env-file-if-exists=.env.local scripts/clear-development-payment-tests.mjs"
   },

@@ -11,7 +11,7 @@ export function WorkshopJourney() {
       (entries) => entries.forEach((entry) => {
         if (entry.isIntersecting) setActive(Number((entry.target as HTMLElement).dataset.index));
       }),
-      { rootMargin: "-38% 0px -50%", threshold: 0 },
+      { rootMargin: "-30% 0px -30%", threshold: 0 },
     );
 
     items.current.forEach((item) => item && observer.observe(item));

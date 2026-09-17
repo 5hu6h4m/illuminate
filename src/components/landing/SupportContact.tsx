@@ -1,9 +1,10 @@
+import { Container } from "@/components/ui/Container";
 import { event } from "@/config/event";
 
 export function SupportContact() {
   return (
     <section id="contact" className="landing-section landing-support" aria-labelledby="support-title">
-      <div className="container">
+      <Container>
         <div className="support-panel">
           <div>
             <p className="text-eyebrow">Need help?</p>
@@ -14,7 +15,7 @@ export function SupportContact() {
             <a className="underline" href={`mailto:${event.contacts.support.value}`}>{event.contacts.support.value}</a>.
           </p>
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

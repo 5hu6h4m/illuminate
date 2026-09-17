@@ -1,3 +1,4 @@
+import { Container } from "@/components/ui/Container";
 import { illuminateContent } from "@/content/illuminate";
 
 export function RegistrationProcess() {
@@ -5,7 +6,7 @@ export function RegistrationProcess() {
 
   return (
     <section id="registration-process" className="landing-section registration-process" aria-labelledby="registration-process-title">
-      <div className="container">
+      <Container>
         <div className="registration-process__intro">
           <p className="text-eyebrow">Registration and payment</p>
           <h2 id="registration-process-title">{process.title}</h2>
@@ -30,7 +31,7 @@ export function RegistrationProcess() {
           <p>{process.confirmationMessage}</p>
           <p>{process.resubmissionMessage}</p>
         </div>
-      </div>
+      </Container>
     </section>
   );
 }
