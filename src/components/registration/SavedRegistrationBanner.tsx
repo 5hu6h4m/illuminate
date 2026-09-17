@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { clearSavedRegistration, loadSavedRegistration, type SavedRegistration } from "@/lib/registration-continuation";
 
 /**
@@ -11,11 +11,14 @@ import { clearSavedRegistration, loadSavedRegistration, type SavedRegistration }
  * planted value can never become an open redirect or foreign link.
  */
 export function SavedRegistrationBanner() {
-  // Client component: localStorage read belongs in the lazy initializer,
-  // not an effect (avoids a cascading render; SSR-safe via typeof guard).
-  const [saved, setSaved] = useState<SavedRegistration | null>(() =>
-    typeof window === "undefined" ? null : loadSavedRegistration(window.localStorage),
-  );
+  // Render null on the first pass (matching SSR) and read localStorage in an
+  // effect: reading it during render hydrates differently when a saved
+  // registration exists only on the client, causing a hydration mismatch.
+  const [saved, setSaved] = useState<SavedRegistration | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Isomorphic localStorage read must run post-hydration so first client render matches SSR (null).
+    setSaved(loadSavedRegistration(window.localStorage));
+  }, []);
   if (!saved) return null;
   return <div className="registration-preview" role="status">
     <p>You already started a registration on this device ({saved.publicId}).{" "}
