@@ -9,7 +9,7 @@ const statuses = new Set<PaymentStatus>(["payment_pending", "submitted_for_verif
 export const runtime = "nodejs";
 export async function GET(request: Request) {
   if (!await isAdminAuthenticated()) return apiError(401, "UNAUTHORIZED", "Unauthorized.");
-  if (!isDbConfigured()) return apiError(503, "ADMIN_UNAVAILABLE", "Admin is unavailable.");
+  if (!isDbConfigured()) return apiError(503, "ADMIN_DB_NOT_CONFIGURED", "Admin is unavailable: server database is not configured (code ADMIN-DB-CONFIG).");
   const url = new URL(request.url);
   const q = (url.searchParams.get("q") ?? "").trim().slice(0, 120);
   const status = url.searchParams.get("status");
@@ -35,5 +35,5 @@ export async function GET(request: Request) {
       collection.countDocuments(realRegistrationFilter),
     ]);
     return sensitiveJson({ rows, total, page, limit, metrics, testRecords, realTotal });
-  } catch { return apiError(503, "ADMIN_UNAVAILABLE", "Admin is unavailable."); }
+  } catch { return apiError(503, "ADMIN_REQUEST_FAILED", "Admin is temporarily unavailable (server issue). Retry in a minute (code ADMIN-SERVER)."); }
 }

@@ -14,10 +14,19 @@ declare global {
 let clientPromise: Promise<MongoClient> | undefined;
 function clientOptions() {
   return {
-    serverSelectionTimeoutMS: 5000,
+    // Burst-tuned for 100+ concurrent participants on serverless (Vercel):
+    // each instance handles few requests, so keep per-instance pool modest to
+    // avoid exhausting Atlas M0/M2 connection caps (500 max) when 100
+    // requests fan out across instances. maxConnecting ramps fast for spikes.
+    serverSelectionTimeoutMS: 8000,
     connectTimeoutMS: 5000,
-    maxPoolSize: 10,
+    socketTimeoutMS: 20000,
+    maxPoolSize: 15,
+    minPoolSize: 1,
+    maxIdleTimeMS: 30_000,
+    maxConnecting: 5,
     retryWrites: true,
+    retryReads: true,
   };
 }
 function getClientPromise(): Promise<MongoClient> {
@@ -64,6 +73,21 @@ export async function ensurePaymentIndexes(): Promise<void> {
     };
     await replaceUnsafeLegacyIndex("id_1", "id");
     await replaceUnsafeLegacyIndex("email_1", "email");
+    // Defensive: any other unique index without a partial/sparse guard that
+    // keys on a field v2 documents omit would collapse all participants into
+    // one null key ("all users acting as the same entity"). Detect and warn
+    // instead of silently failing every insert after the first.
+    for (const candidate of existingIndexes) {
+      if (!candidate.unique || candidate.sparse || candidate.partialFilterExpression) continue;
+      if (typeof candidate.name === "string" && (candidate.name.startsWith("v2_") || candidate.name.startsWith("legacy_") || candidate.name === "_id_")) continue;
+      const keys = Object.keys(candidate.key ?? {});
+      // Heuristic: single-field unique indexes on legacy root fields are the
+      // dangerous shape. Compound v2 indexes are always created with partial
+      // filters above, so anything else unique + unguarded is suspect.
+      if (keys.length === 1 && ["id", "email", "mobile", "phone", "publicId", "token"].includes(keys[0])) {
+        console.error(`[registration_diagnostic] UNSAFE_LEGACY_INDEX_DETECTED ${String(candidate.name)} keys=${JSON.stringify(candidate.key)} — drop or convert to partial to unblock concurrent registrations.`);
+      }
+    }
     await Promise.all([
       registrations.createIndex({ publicId: 1 }, { name: "v2_public_id_unique", unique: true, partialFilterExpression: current }),
       registrations.createIndex({ eventKey: 1, "participant.normalizedEmail": 1 }, { name: "v2_event_email_unique", unique: true, partialFilterExpression: current }),
@@ -75,6 +99,8 @@ export async function ensurePaymentIndexes(): Promise<void> {
       registrations.createIndex({ createdAt: -1 }, { name: "v2_created_at", partialFilterExpression: current }),
       db.collection("rate_limits").createIndex({ expiresAt: 1 }, { name: "rate_limit_expiry", expireAfterSeconds: 0 }),
       db.collection("rate_limits").createIndex({ key: 1 }, { name: "rate_limit_key", unique: true }),
+      db.collection("admin_audit").createIndex({ at: -1 }, { name: "admin_audit_at" }),
+      db.collection("admin_audit").createIndex({ type: 1, at: -1 }, { name: "admin_audit_type_at" }),
     ]);
   })();
   global.__illuminateIndexesPromise = task;

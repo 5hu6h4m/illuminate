@@ -8,8 +8,15 @@ export const runtime = "nodejs";
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   try {
-    if (!(await enforceRateLimit("status-read", clientIp(request), 120, 10 * 60 * 1000))) {
-      return apiError(429, "RATE_LIMITED", "Too many requests. Please retry shortly.");
+    // Reads are bearer-authenticated (token), so the per-IP bucket is only a
+    // generous burst guard for NAT gateways (500 classmates polling status),
+    // while the per-token bucket stops one client hammering refresh.
+    const ip = clientIp(request);
+    if (ip !== "unknown" && !(await enforceRateLimit("status-read-ip", ip, 400, 10 * 60 * 1000))) {
+      return apiError(429, "RATE_LIMITED", "Too many requests. Please retry shortly.", { retryAfterSeconds: 600 });
+    }
+    if (!(await enforceRateLimit("status-read-token", `token:${token.slice(0, 32)}`, 60, 10 * 60 * 1000))) {
+      return apiError(429, "RATE_LIMITED", "Too many requests. Please retry shortly.", { retryAfterSeconds: 600 });
     }
   } catch { /* fail-open for reads: continue to token check */ }
   if (!isDbConfigured() || !isValidParticipantAccessToken(token)) return apiError(404, "INVALID_STATUS_TOKEN", "Not found.");

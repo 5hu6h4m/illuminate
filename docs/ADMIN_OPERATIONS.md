@@ -26,6 +26,20 @@ Do not verify based on a screenshot alone. The application has no bank or UPI se
 
 Provide a short participant-facing reason, for example “Screenshot unclear — please upload a clearer proof.” A private note is internal only and never appears on the participant status page. The participant can submit a replacement proof/reference through their existing private status link.
 
+## Delete a registration
+
+Verified, rejected, and submitted registrations are deletable. Deletion is hard and permanent — it cannot be undone.
+
+1. Export the IITB + internal CSVs first and keep them with the event records.
+2. Open the record and scroll to the danger zone.
+3. For verified / submitted / rejected real registrations, tick the export confirmation checkbox (TEST and still-pending records skip this step).
+4. Type the full `ILL26-XXXXXX` reference to confirm.
+5. Enter a deletion reason (10–500 characters) — it is stored in the audit log.
+6. Re-enter the admin password.
+7. Choose confirm to permanently delete.
+
+Deletion destroys the registration, its uploaded proofs, and its `audit[]` history. A snapshot copy (reference, test flag, payment state, expected amount, transaction reference, reason) is kept in the `admin_audit` log as `admin_registration_deleted_verified` (was verified) or `admin_registration_deleted`. Verified revenue and exports drop accordingly, and the email/phone/transaction reference are freed for reuse. The non-refundable policy still applies commercially — deletion is an operational removal, not a refund.
+
 ## Exports
 
 - **IITB CSV**: verified real participants only — name, email, phone number.
@@ -39,7 +53,7 @@ The record review view shows safe notification status for submission and verific
 
 ## Lost private status link
 
-Do not recover a link from only a registration reference, email, or phone; those are not credentials. Ask the participant to contact E-Cell MET Team at `met.iot.ecell@gmail.com`, then follow an organizer-approved identity-verification process. No automated recovery flow exists.
+Do not recover a link from only a registration reference, email, or phone; those are not credentials. Participants can self-serve at `/login` with their Illuminate ID plus the email or mobile they registered with. Otherwise ask the participant to contact E-Cell MET Team at `met.iot.ecell@gmail.com`, then follow an organizer-approved identity-verification process.
 
 ## Database issue or incident
 
