@@ -28,11 +28,17 @@ Provide a short participant-facing reason, for example “Screenshot unclear —
 
 ## Delete a registration
 
-Open the record, scroll to the danger zone, and choose delete. A confirmation prompt names the exact record; deletion is permanent and removes uploaded proofs.
+Verified, rejected, and submitted registrations are deletable. Deletion is hard and permanent — it cannot be undone.
 
-- **TEST records** can always be deleted. Use the scope filter to list them.
-- **Real registrations** can only be deleted while payment is still pending. Submitted, verified, or rejected payments are preserved for audit and the API refuses them.
-- Every deletion is recorded in the `admin_audit` log with the reference, test flag, and payment state.
+1. Export the IITB + internal CSVs first and keep them with the event records.
+2. Open the record and scroll to the danger zone.
+3. For verified / submitted / rejected real registrations, tick the export confirmation checkbox (TEST and still-pending records skip this step).
+4. Type the full `ILL26-XXXXXX` reference to confirm.
+5. Enter a deletion reason (10–500 characters) — it is stored in the audit log.
+6. Re-enter the admin password.
+7. Choose confirm to permanently delete.
+
+Deletion destroys the registration, its uploaded proofs, and its `audit[]` history. A snapshot copy (reference, test flag, payment state, expected amount, transaction reference, reason) is kept in the `admin_audit` log as `admin_registration_deleted_verified` (was verified) or `admin_registration_deleted`. Verified revenue and exports drop accordingly, and the email/phone/transaction reference are freed for reuse. The non-refundable policy still applies commercially — deletion is an operational removal, not a refund.
 
 ## Exports
 

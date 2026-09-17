@@ -99,6 +99,8 @@ export async function ensurePaymentIndexes(): Promise<void> {
       registrations.createIndex({ createdAt: -1 }, { name: "v2_created_at", partialFilterExpression: current }),
       db.collection("rate_limits").createIndex({ expiresAt: 1 }, { name: "rate_limit_expiry", expireAfterSeconds: 0 }),
       db.collection("rate_limits").createIndex({ key: 1 }, { name: "rate_limit_key", unique: true }),
+      db.collection("admin_audit").createIndex({ at: -1 }, { name: "admin_audit_at" }),
+      db.collection("admin_audit").createIndex({ type: 1, at: -1 }, { name: "admin_audit_type_at" }),
     ]);
   })();
   global.__illuminateIndexesPromise = task;

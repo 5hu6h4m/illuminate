@@ -1,27 +1,195 @@
 "use client";
-/* eslint-disable @next/next/no-img-element -- authenticated proof requests must carry the session cookie. */
 
-import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Download, LogOut, Search, Trash2, XCircle } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Download, LogOut, X } from "lucide-react";
+import { AdminLogin } from "@/components/admin/AdminLogin";
+import { DeleteVerifiedDialog } from "@/components/admin/DeleteVerifiedDialog";
+import type { DeleteConfirmInput } from "@/components/admin/DeleteVerifiedDialog";
+import { FilterBar } from "@/components/admin/FilterBar";
+import { MetricsBar } from "@/components/admin/MetricsBar";
+import { QueueTable } from "@/components/admin/QueueTable";
+import { ReviewModal } from "@/components/admin/ReviewModal";
+import type { Row } from "@/components/admin/types";
+import { useDashboard } from "@/hooks/admin/useDashboard";
 
-type Status = "payment_pending" | "submitted_for_verification" | "verified" | "rejected";
-type Row = { publicId: string; isTest: boolean; participant: { fullName: string; email: string; phone: string }; payment: { snapshot: { expectedAmount: number | null }; status: Status; transactionReference?: string; currentProofId?: string; submittedAt?: string }; emailNotifications?: { paymentSubmitted?: { status: string }; paymentVerified?: { status: string } } };
-type Dashboard = { rows: Row[]; total: number; realTotal: number; testRecords: number; metrics: Array<{ _id: Status; count: number; revenue: number }> };
-const statusText: Record<Status, string> = { payment_pending: "Payment pending", submitted_for_verification: "Awaiting verification", verified: "Verified", rejected: "Rejected" };
+export type { Dashboard, Row, Status } from "@/components/admin/types";
+export { statusText } from "@/components/admin/types";
 
 export default function AdminPage() {
-  const [password, setPassword] = useState(""); const [authed, setAuthed] = useState(false); const [data, setData] = useState<Dashboard | null>(null); const [error, setError] = useState(""); const [modalError, setModalError] = useState(""); const [loading, setLoading] = useState(false); const [query, setQuery] = useState(""); const [status, setStatus] = useState<"" | Status>("submitted_for_verification"); const [scope, setScope] = useState<"" | "test" | "real">(""); const [selected, setSelected] = useState<Row | null>(null); const [confirmed, setConfirmed] = useState(false); const [reason, setReason] = useState(""); const [privateNote, setPrivateNote] = useState("");
-  const fetchDashboard = useCallback(async (): Promise<Dashboard> => { const url = new URL("/api/admin/registrations", location.origin); if (query) url.searchParams.set("q", query); if (status) url.searchParams.set("status", status); if (scope) url.searchParams.set("scope", scope); const response = await fetch(url, { cache: "no-store" }); const json = await response.json().catch(() => null); if (!response.ok) throw new Error(json?.error?.message || "Could not refresh registrations."); return json.data as Dashboard; }, [query, scope, status]);
-  const refresh = useCallback(async (opts?: { silent?: boolean }): Promise<boolean> => { setLoading(true); try { setData(await fetchDashboard()); setAuthed(true); setError(""); return true; } catch (cause) { if (!opts?.silent) setError(cause instanceof Error ? cause.message : "Could not refresh registrations."); return false; } finally { setLoading(false); } }, [fetchDashboard]);
-  useEffect(() => { const timer = setTimeout(() => void refresh({ silent: true }), 0); return () => clearTimeout(timer); }, [refresh]);
-  const login = async (event: React.FormEvent) => { event.preventDefault(); setLoading(true); setError(""); try { const response = await fetch("/api/admin/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) }); const json = await response.json().catch(() => null); if (!response.ok) throw new Error(json?.error?.message || "Could not sign in."); setPassword(""); if (!await refresh()) throw new Error("Signed in, but the queue could not be refreshed."); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not sign in."); } finally { setLoading(false); } };
-  const review = async (action: "verify" | "reject") => { if (!selected) return; setLoading(true); setModalError(""); try { const body = action === "verify" ? selected.isTest ? { action, developmentSimulationVerified: confirmed } : { action, confirmedInRecipientAccount: confirmed } : { action, publicReason: reason, privateNote }; const response = await fetch(`/api/admin/registrations/${selected.publicId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); const json = await response.json().catch(() => null); if (!response.ok) throw new Error(json?.error?.message || "Verification could not be saved. Refresh and try again."); const updated = await fetchDashboard(); setData(updated); setSelected(null); setConfirmed(false); setReason(""); setPrivateNote(""); } catch (cause) { setModalError(cause instanceof Error ? cause.message : "Verification could not be saved. Refresh and try again."); } finally { setLoading(false); } };
-  const removeSelected = async () => { if (!selected) return; const target = `${selected.publicId} (${selected.participant.fullName})`; if (!window.confirm(`Permanently delete ${target} and its uploaded proofs? This cannot be undone.${selected.isTest ? "" : " Real registrations can only be deleted while payment is still pending."}`)) return; setLoading(true); setModalError(""); try { const response = await fetch(`/api/admin/registrations/${selected.publicId}`, { method: "DELETE" }); const json = await response.json().catch(() => null); if (!response.ok) throw new Error(json?.error?.message || "Could not delete this registration. Refresh and try again."); const updated = await fetchDashboard(); setData(updated); setSelected(null); setConfirmed(false); setReason(""); setPrivateNote(""); } catch (cause) { setModalError(cause instanceof Error ? cause.message : "Could not delete this registration. Refresh and try again."); } finally { setLoading(false); } };
-  if (!authed) return <div className="admin-shell"><main className="mx-auto max-w-md px-5 py-20"><p className="text-eyebrow text-brand-electric">Staff workspace</p><h1 className="mt-3 text-display">Admin sign in</h1><hr className="thread-divider" aria-hidden /><div className="credential-frame mt-8"><div className="credential-frame__inner p-6"><form className="space-y-4" onSubmit={login}><label className="registration-field"><span>Password</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required /></label>{error && <p role="alert" className="registration-field__error">{error}</p>}<button className="registration-primary-action w-full justify-center" disabled={loading}>Sign in</button></form></div></div></main></div>;
-  const metric = (key: Status) => data?.metrics.find((item) => item._id === key)?.count ?? 0; const revenue = data?.metrics.reduce((sum, item) => sum + item.revenue, 0) ?? 0;
-  return <div className="admin-shell"><main className="mx-auto max-w-7xl px-5 py-10"><header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-eyebrow text-brand-electric">Operations</p><h1 className="mt-2 text-display">Payment verification</h1><p className="mt-2 text-sm text-text-secondary">{data?.testRecords ? `${data.testRecords} development TEST record(s), excluded from real metrics and exports.` : "No development test records."}</p></div><div className="flex flex-wrap gap-3"><a className="registration-back" href="/api/admin/export"><Download aria-hidden /> IITB CSV</a><a className="registration-back" href="/api/admin/export?mode=internal"><Download aria-hidden /> Internal CSV</a><button className="registration-back" onClick={() => void fetch("/api/admin/auth/logout", { method: "POST" }).then(() => { setAuthed(false); setData(null); })}><LogOut aria-hidden /> Log out</button></div></header><section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-6"><Metric text="Real registrations" value={data?.realTotal ?? 0} />{(["payment_pending", "submitted_for_verification", "verified", "rejected"] as Status[]).map((key) => <Metric key={key} text={statusText[key]} value={metric(key)} />)}<Metric text="Verified revenue (real only)" value={`₹${revenue.toLocaleString("en-IN")}`} /></section><form className="mt-8 flex flex-col gap-3 sm:flex-row" onSubmit={(event) => { event.preventDefault(); void refresh(); }}><input className="min-h-11 flex-1 rounded-xl border border-white/15 bg-transparent px-4" placeholder="Reference, name, email, phone, or transaction reference" aria-label="Search registrations" value={query} onChange={(event) => setQuery(event.target.value)} /><select className="min-h-11 rounded-xl border border-white/15 bg-ink px-4" aria-label="Filter by status" value={status} onChange={(event) => setStatus(event.target.value as "" | Status)}><option value="">All statuses</option>{Object.entries(statusText).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select><select className="min-h-11 rounded-xl border border-white/15 bg-ink px-4" aria-label="Filter by record scope" value={scope} onChange={(event) => setScope(event.target.value as "" | "test" | "real")}><option value="">All visible records</option><option value="test">TEST records</option><option value="real">Real records</option></select><button className="registration-primary-action"><Search aria-hidden /> Search</button></form>{error && <p role="alert" className="mt-4 registration-field__error">{error}</p>}<Queue rows={data?.rows ?? []} onSelect={(row) => { setModalError(""); setSelected(row); }} />{selected && <ReviewModal row={selected} confirmed={confirmed} setConfirmed={setConfirmed} reason={reason} setReason={setReason} privateNote={privateNote} setPrivateNote={setPrivateNote} error={modalError} loading={loading} onClose={() => setSelected(null)} onReview={review} onDelete={() => void removeSelected()} />}</main></div>;
+  const {
+    authed,
+    data,
+    error,
+    notice,
+    query,
+    status,
+    scope,
+    page,
+    limit,
+    refreshing,
+    authPending,
+    verifyPending,
+    rejectPending,
+    deletePending,
+    setQuery,
+    setStatus,
+    setScope,
+    setPage,
+    clearNotice,
+    login,
+    logout,
+    refresh,
+    verify,
+    reject,
+    remove,
+  } = useDashboard();
+  const [selected, setSelected] = useState<Row | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
+  const [modalError, setModalError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+
+  const closeReview = useCallback(() => {
+    setSelected(null);
+    setModalError("");
+  }, []);
+
+  const closeDeleteDialog = useCallback(() => {
+    setDeleteTarget(null);
+    setDeleteError("");
+  }, []);
+
+  if (!authed) return <AdminLogin onLogin={login} pending={authPending} error={error} />;
+
+  const handleVerify = async (confirmed: boolean) => {
+    if (!selected) return;
+    setModalError("");
+    try {
+      await verify(selected, confirmed);
+      setSelected(null);
+    } catch (cause) {
+      setModalError(cause instanceof Error ? cause.message : "Verification could not be saved. Refresh and try again.");
+    }
+  };
+
+  const handleReject = async (reason: string, privateNote: string) => {
+    if (!selected) return;
+    setModalError("");
+    try {
+      await reject(selected, reason, privateNote);
+      setSelected(null);
+    } catch (cause) {
+      setModalError(cause instanceof Error ? cause.message : "Verification could not be saved. Refresh and try again.");
+    }
+  };
+
+  const handleDeleteConfirm = async (input: DeleteConfirmInput) => {
+    if (!deleteTarget) return;
+    const publicId = deleteTarget.publicId;
+    try {
+      await remove(publicId, input);
+      setDeleteTarget(null);
+      setDeleteError("");
+      setSelected((current) => (current?.publicId === publicId ? null : current));
+      setModalError("");
+    } catch (cause) {
+      setDeleteError(
+        cause instanceof Error ? cause.message : "Could not delete this registration. Refresh and try again.",
+      );
+    }
+  };
+
+  return (
+    <div className="admin-shell">
+      <main className="mx-auto max-w-7xl px-5 py-10">
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-eyebrow text-brand-electric">Operations</p>
+            <h1 className="mt-2 text-display">Payment verification</h1>
+            <p className="mt-2 text-sm text-text-secondary">
+              {data?.testRecords
+                ? `${data.testRecords} development TEST record(s), excluded from real metrics and exports.`
+                : "No development test records."}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <a className="registration-back" href="/api/admin/export">
+              <Download aria-hidden /> IITB CSV
+            </a>
+            <a className="registration-back" href="/api/admin/export?mode=internal">
+              <Download aria-hidden /> Internal CSV
+            </a>
+            <button className="registration-back" onClick={() => void logout()} aria-label="Log out">
+              <LogOut aria-hidden /> Log out
+            </button>
+          </div>
+        </header>
+        {notice && (
+          <div
+            role="status"
+            className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-emerald-300/30 p-4 text-sm text-emerald-100"
+          >
+            <span>{notice}</span>
+            <button className="registration-back" onClick={clearNotice} aria-label="Dismiss notification">
+              <X aria-hidden size={16} />
+            </button>
+          </div>
+        )}
+        {error && (
+          <p role="alert" className="mt-4 registration-field__error">
+            {error}
+          </p>
+        )}
+        <MetricsBar data={data} activeStatus={status} onSelectStatus={(next) => setStatus(next)} />
+        <FilterBar
+          query={query}
+          onQueryChange={setQuery}
+          status={status}
+          onStatusChange={setStatus}
+          scope={scope}
+          onScopeChange={setScope}
+          total={data?.total ?? 0}
+          refreshing={refreshing}
+          onRefresh={() => void refresh()}
+        />
+        <QueueTable
+          rows={data?.rows ?? []}
+          total={data?.total ?? 0}
+          page={page}
+          limit={limit}
+          refreshing={refreshing}
+          onPageChange={setPage}
+          onSelect={(row) => {
+            setModalError("");
+            setSelected(row);
+          }}
+        />
+        {selected && (
+          <ReviewModal
+            key={selected.publicId}
+            row={selected}
+            verifyPending={verifyPending}
+            rejectPending={rejectPending}
+            error={modalError}
+            onClose={closeReview}
+            onVerify={handleVerify}
+            onReject={handleReject}
+            onRequestDelete={(row) => {
+              setDeleteError("");
+              setDeleteTarget(row);
+            }}
+          />
+        )}
+        {deleteTarget && (
+          <DeleteVerifiedDialog
+            key={deleteTarget.publicId}
+            row={deleteTarget}
+            pending={deletePending}
+            error={deleteError}
+            onClose={closeDeleteDialog}
+            onConfirm={handleDeleteConfirm}
+          />
+        )}
+      </main>
+    </div>
+  );
 }
-function Metric({ text, value }: { text: string; value: string | number }) { return <div className="metric-panel"><p className="text-xs text-text-secondary">{text}</p><p className="mt-2 text-3xl font-semibold">{value}</p></div>; }
-function Badge() { return <span className="ml-2 rounded bg-amber-300/20 px-1.5 py-0.5 text-[10px] text-amber-100">TEST</span>; }
-function Queue({ rows, onSelect }: { rows: Row[]; onSelect: (row: Row) => void }) { return <div className="credential-frame mt-6"><div className="credential-frame__inner overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="border-b border-white/10 text-xs text-text-secondary"><tr><th className="p-4">Reference</th><th className="p-4">Participant</th><th className="p-4">Expected</th><th className="p-4">Transaction</th><th className="p-4">Submitted</th><th className="p-4">Status</th></tr></thead><tbody>{rows.map((row) => <tr key={row.publicId} onClick={() => onSelect(row)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(row); } }} tabIndex={0} aria-label={`Review ${row.publicId} ${row.participant.fullName}`} className="cursor-pointer border-b border-white/5 hover:bg-white/[0.03] focus-visible:outline-2 focus-visible:outline-offset-[-2px]"><td className="p-4 font-mono text-brand-electric">{row.publicId}{row.isTest && <Badge />}</td><td className="p-4"><p>{row.participant.fullName}</p><p className="text-xs text-text-secondary">{row.participant.email} · {row.participant.phone}</p></td><td className="p-4">{row.isTest ? "₹XXX · TEST" : `₹${row.payment.snapshot.expectedAmount}`}</td><td className="p-4 font-mono">{row.payment.transactionReference || "—"}</td><td className="p-4">{row.payment.submittedAt ? new Date(row.payment.submittedAt).toLocaleString("en-IN") : "—"}</td><td className="p-4">{row.isTest ? "TEST · " : ""}{statusText[row.payment.status]}</td></tr>)}{!rows.length && <tr><td colSpan={6} className="p-12 text-center text-text-secondary">No matching current-generation registrations.</td></tr>}</tbody></table></div></div>; }
-function ReviewModal({ row, confirmed, setConfirmed, reason, setReason, privateNote, setPrivateNote, error, loading, onClose, onReview, onDelete }: { row: Row; confirmed: boolean; setConfirmed: (value: boolean) => void; reason: string; setReason: (value: string) => void; privateNote: string; setPrivateNote: (value: string) => void; error: string; loading: boolean; onClose: () => void; onReview: (action: "verify" | "reject") => Promise<void>; onDelete: () => void }) { return <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="admin-review-title" onKeyDown={(event) => { if (event.key === "Escape") onClose(); }}><section className="credential-frame mx-auto my-8 max-w-3xl"><div className="credential-frame__inner p-6"><div className="flex justify-between"><div><p className="font-mono text-brand-electric">{row.publicId}{row.isTest && <Badge />}</p><h2 id="admin-review-title" className="mt-1 text-2xl font-semibold">{row.participant.fullName}</h2></div><button className="registration-back" onClick={onClose} autoFocus>Close</button></div>{error && <p role="alert" className="registration-field__error mt-4">{error}</p>}<dl className="mt-6 grid gap-3 sm:grid-cols-2"><div><dt className="text-xs text-text-secondary">Expected</dt><dd>{row.isTest ? "₹XXX · simulated" : `₹${row.payment.snapshot.expectedAmount}`}</dd></div><div><dt className="text-xs text-text-secondary">Transaction/reference</dt><dd className="font-mono">{row.payment.transactionReference}</dd></div></dl>{row.payment.currentProofId && <img src={`/api/admin/proof/${row.payment.currentProofId}`} alt={`Payment proof for ${row.publicId}`} className="mt-6 max-h-[520px] w-full rounded-2xl border border-white/15 object-contain" />}{row.payment.status === "submitted_for_verification" && <div className="mt-6 space-y-4 rounded-2xl border border-white/10 p-5"><label className="flex gap-3 text-sm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><span>{row.isTest ? "This verifies the simulated development workflow. No real bank or UPI payment was confirmed." : "I have confirmed payment in the authorized recipient account. A screenshot alone is not sufficient."}</span></label><button disabled={!confirmed || loading} className="registration-primary-action" onClick={() => void onReview("verify")}><CheckCircle2 aria-hidden /> {row.isTest ? "Verify simulated test" : "Verify payment"}</button><label className="registration-field"><span>Participant-facing rejection reason</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={300} /></label><label className="registration-field"><span>Private admin note</span><textarea value={privateNote} onChange={(event) => setPrivateNote(event.target.value)} maxLength={1000} /></label><button disabled={!reason.trim() || loading} className="registration-back border-red-400/40 text-red-200" onClick={() => void onReview("reject")}><XCircle aria-hidden /> Reject / request resubmission</button></div>}<div className="mt-6 space-y-3 rounded-2xl border border-red-400/30 p-5"><p className="text-sm font-semibold text-red-200">Danger zone</p><p className="text-sm text-text-secondary">{row.isTest ? "Permanently delete this TEST record and its uploaded proofs. This cannot be undone." : "Real registrations can only be deleted while payment is still pending. Submitted, verified, or rejected payments are preserved for audit."}</p><button disabled={loading} className="registration-back border-red-400/40 text-red-200" onClick={() => void onDelete()}><Trash2 aria-hidden /> Delete {row.isTest ? "TEST record" : "registration"}</button></div></div></section></div>; }

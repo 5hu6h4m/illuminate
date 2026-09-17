@@ -1,9 +1,10 @@
 import { ObjectId } from "mongodb";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
-import { AdminRejectSchema, AdminVerifySchema } from "@/lib/registration-v2";
-import { apiError, isSameOrigin, sensitiveJson } from "@/lib/http";
+import { isAdminAuthenticated, verifyAdminPassword } from "@/lib/admin-auth";
+import { AdminDeleteSchema, AdminRejectSchema, AdminVerifySchema } from "@/lib/registration-v2";
+import { apiError, clientIp, isSameOrigin, sensitiveJson } from "@/lib/http";
 import { getDb, getPaymentProofBucket, getRegistrationsCollection, isDbConfigured } from "@/lib/mongodb";
 import { isDevE2EPreviewEnabled } from "@/lib/payment";
+import { enforceAdminDeleteRateLimit } from "@/lib/rate-limit";
 import { PaymentFlowError, rejectPaymentForReview, verifyPaymentForReview } from "@/lib/payment-flow-service";
 
 export const runtime = "nodejs";
@@ -42,38 +43,57 @@ export async function POST(request: Request, { params }: { params: Promise<{ pub
 /**
  * Permanently deletes one registration and its uploaded proofs.
  *
- * Safety policy: TEST registrations are always deletable. Real registrations
- * are deletable only while no payment has been submitted yet
- * (`payment_pending`); submitted, verified, or rejected payments are
- * preserved for financial audit. Every deletion is recorded in `admin_audit`.
+ * Hard-delete is allowed for any status (including verified real
+ * registrations). The caller must re-enter the admin password and confirm
+ * the public ID in the request body. Every deletion is recorded in
+ * `admin_audit`, distinguishing verified deletions for financial audit.
  */
-export async function DELETE(_: Request, { params }: { params: Promise<{ publicId: string }> }) {
-  if (!isSameOrigin(_)) return apiError(403, "UNAUTHORIZED", "Unauthorized.");
+export async function DELETE(request: Request, { params }: { params: Promise<{ publicId: string }> }) {
+  if (!isSameOrigin(request)) return apiError(403, "UNAUTHORIZED", "Unauthorized.");
   if (!await isAdminAuthenticated()) return apiError(401, "UNAUTHORIZED", "Unauthorized.");
   const { publicId } = await params;
   if (!/^ILL26-[A-Z0-9]{6}$/.test(publicId)) return apiError(404, "NOT_FOUND", "Not found.");
-  if (!isDbConfigured()) return apiError(503, "ADMIN_UNAVAILABLE", "Admin is unavailable.");
+  if (!isDbConfigured()) return apiError(503, "ADMIN_DB_NOT_CONFIGURED", "Admin is unavailable: server database is not configured (code ADMIN-DB-CONFIG).");
+  const ip = clientIp(request);
+  try {
+    const limit = await enforceAdminDeleteRateLimit({ ip, publicId });
+    if (!limit.ok) return apiError(429, "RATE_LIMITED", "Too many delete attempts. Please try again shortly.", { retryAfterSeconds: limit.retryAfterSeconds });
+  } catch {
+    return apiError(503, "SERVER_ERROR", "Could not delete the registration.");
+  }
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return apiError(422, "INVALID_REQUEST", "A valid confirmation payload with confirmPublicId, reason, and password is required.");
+  }
+  const parsed = AdminDeleteSchema.safeParse(rawBody);
+  if (!parsed.success) return apiError(422, "INVALID_REQUEST", "A valid confirmPublicId, a deletion reason (10-500 characters), and the admin password are required.");
+  if (parsed.data.confirmPublicId !== publicId) return apiError(422, "INVALID_REQUEST", "Confirmation ID does not match this registration.");
+  // Same response as a missing/invalid session so the endpoint is not a
+  // password-guessing oracle; attempts are additionally rate-limited per ID.
+  if (!verifyAdminPassword(parsed.data.password)) return apiError(401, "UNAUTHORIZED", "Unauthorized.");
   try {
     const collection = await getRegistrationsCollection();
     const existing = await collection.findOne({ schemaVersion: 2, publicId });
     if (!existing) return apiError(404, "NOT_FOUND", "Not found.");
-    if (!existing.isTest && existing.payment.status !== "payment_pending") {
-      return apiError(409, "DELETE_NOT_ALLOWED", "Only TEST registrations and registrations with no payment submitted can be deleted. Submitted, verified, or rejected payments are preserved for audit.");
-    }
-    const proofIds = [...new Set([existing.payment.currentProofId, ...existing.payment.proofHistory.map((entry) => entry.fileId)].filter((value): value is string => Boolean(value)))].filter(ObjectId.isValid);
+    const paymentStatus = existing.payment.status;
+    const wasTest = existing.isTest;
+    const proofIds = [...new Set([existing.payment.currentProofId, ...(existing.payment.proofHistory ?? []).map((entry) => entry.fileId)].filter((value): value is string => Boolean(value)))].filter(ObjectId.isValid);
+    const removed = await collection.findOneAndDelete({ _id: existing._id, schemaVersion: 2, publicId });
+    if (!removed) return apiError(409, "INVALID_STATE_TRANSITION", "This registration changed since you opened it. Refresh and try again.");
     if (proofIds.length) {
       try {
         const bucket = await getPaymentProofBucket();
         await Promise.all(proofIds.map((fileId) => bucket.delete(new ObjectId(fileId)).catch(() => undefined)));
-      } catch { /* proof cleanup is best-effort; the record deletion below is authoritative */ }
+      } catch { /* proof cleanup is best-effort; the record deletion above is authoritative */ }
     }
-    const removed = await collection.deleteOne({ _id: existing._id, schemaVersion: 2 });
-    if (removed.deletedCount !== 1) return apiError(409, "INVALID_STATE_TRANSITION", "This registration changed since you opened it. Refresh and try again.");
+    const wasVerified = paymentStatus === "verified";
     try {
-      await (await getDb()).collection("admin_audit").insertOne({ type: "admin_registration_deleted", actor: "admin", at: new Date(), metadata: { publicId, wasTest: existing.isTest, paymentStatus: existing.payment.status } });
+      await (await getDb()).collection("admin_audit").insertOne({ type: wasVerified ? "admin_registration_deleted_verified" : "admin_registration_deleted", actor: "admin", at: new Date(), metadata: { publicId, wasTest, paymentStatus, expectedAmount: existing.payment.snapshot?.expectedAmount ?? null, transactionReference: existing.payment.transactionReference ?? null, verifiedAt: existing.payment.verifiedAt ?? null, proofIds, reason: parsed.data.reason } });
     } catch (auditError) {
       console.warn("[admin-review] deletion audit insert failed", publicId, auditError instanceof Error ? auditError.message : auditError);
     }
-    return sensitiveJson({ publicId, deleted: true, wasTest: existing.isTest });
+    return sensitiveJson({ publicId, deleted: true, wasTest, wasVerified });
   } catch { return apiError(503, "SERVER_ERROR", "Could not delete the registration."); }
 }
