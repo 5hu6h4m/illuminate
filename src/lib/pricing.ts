@@ -10,8 +10,8 @@ export const PRICING = {
   regular: event.fee.pricing.regularAmount,
 } as const;
 
-export function currentPrice(): number {
-  const snapshot = getConfirmedPaymentSnapshot();
+export function currentPrice(at: Date = new Date()): number {
+  const snapshot = getConfirmedPaymentSnapshot(at);
   if (!snapshot || snapshot.expectedAmount === null) throw new Error("Production pricing is not activated.");
   return snapshot.expectedAmount;
 }

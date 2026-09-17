@@ -74,21 +74,34 @@ test("the public registration explanation keeps proof submission separate from v
   assert.match(process.confirmationMessage, /after payment is verified/i);
 });
 
-test("event detail facts keep manual registration control separate from pending logistics", () => {
+test("event detail facts keep the fixed registration deadline separate from pending logistics", () => {
   assert.equal(event.format.value, "Offline workshop");
   assert.equal(event.registration.eligibility.value, "Open to everyone");
   assert.equal(event.fee.pricing.earlyBirdAmount, 599);
   assert.equal(event.fee.pricing.regularAmount, 699);
-  assert.equal(isConfirmedText(event.registration.deadline), false);
+  assert.equal(isConfirmedText(event.registration.deadline), true);
+  assert.equal(event.registration.deadline.value, "5 October 2026");
   assert.equal(isConfirmedText(event.schedule.date), false);
   assert.equal(isConfirmedText(event.schedule.time), false);
   assert.equal(isConfirmedText(event.schedule.venue), false);
   assert.equal(illuminateContent.speaker.publishState, "pending");
 });
 
-test("public pricing copy does not promise an automatic Early Bird cutoff", () => {
+test("public pricing copy uses the fixed registration dates", () => {
   const homepage = readFileSync(new URL("../src/app/page.tsx", import.meta.url), "utf8");
   const registrationReview = readFileSync(new URL("../src/components/registration/RegistrationWizard.tsx", import.meta.url), "utf8");
-  assert.doesNotMatch(homepage, /first\s+\{?[^\n]*days|first 120 hours|five days/i);
+  assert.match(homepage, /Available through 23 September 2026/);
+  assert.match(homepage, /24 September – 5 October 2026/);
+  assert.doesNotMatch(homepage, /29 September 2026|first 120 hours|five days/i);
   assert.doesNotMatch(registrationReview, /first 120 hours|five days/i);
+});
+
+test("registration controls are fixed source facts, not environment variables", () => {
+  const payment = readFileSync(new URL("../src/lib/payment.ts", import.meta.url), "utf8");
+  const launchCheck = readFileSync(new URL("../scripts/launch-check.mts", import.meta.url), "utf8");
+  const envExample = readFileSync(new URL("../.env.example", import.meta.url), "utf8");
+  assert.match(JSON.stringify(event.registration), /2026-09-15T00:00:00\+05:30/);
+  assert.doesNotMatch(payment, /REGISTRATION_OPEN(?:_AT)?|REGISTRATION_PRICE_TIER/);
+  assert.doesNotMatch(launchCheck, /REGISTRATION_OPEN(?:_AT)?|REGISTRATION_PRICE_TIER/);
+  assert.doesNotMatch(envExample, /REGISTRATION_OPEN(?:_AT)?|REGISTRATION_PRICE_TIER/);
 });

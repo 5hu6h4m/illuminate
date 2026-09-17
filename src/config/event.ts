@@ -28,7 +28,10 @@ export const event = {
     duration: { value: null, confirmation: "pending" },
   },
   registration: {
-    deadline: { value: null, confirmation: "pending" },
+    openAt: "2026-09-15T00:00:00+05:30",
+    earlyBirdEndAt: "2026-09-24T00:00:00+05:30",
+    closeAt: "2026-10-06T00:00:00+05:30",
+    deadline: { value: "5 October 2026", confirmation: "confirmed" },
     capacity: { value: null, confirmation: "pending" },
     eligibility: { value: "Open to everyone", confirmation: "confirmed" },
   },

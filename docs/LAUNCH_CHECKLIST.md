@@ -4,7 +4,7 @@
 
 - [x] Current-generation registration, private status links, manual verification, private GridFS proof storage, audit events, and protected exports.
 - [x] Real/test record isolation and development payment lifecycle QA.
-- [x] Canonical two-tier payment snapshots: server-selected Early Bird at ₹599 or Regular at ₹699.
+- [x] Canonical fixed-schedule payment snapshots: Early Bird ₹599 through 23 September 2026, then Regular ₹699 through 5 October 2026.
 - [x] Confirmed recipient/payment configuration is centralised and QR/deep-link safe.
 - [x] Published privacy, registration terms, refund information, and support links.
 - [x] Production safety commands: `npm run qa:production` and `npm run launch:check`.
@@ -12,7 +12,7 @@
 ## Confirmed by organizers
 
 - [x] Registration is open to everyone.
-- [x] Registration is manually opened and closed by the organizer; no automatic public cutoff is claimed.
+- [x] Registration is scheduled from 15 September through 5 October 2026; public deadline: 5 October 2026.
 - [x] INR pricing: ₹599 Early Bird / ₹699 Regular.
 - [x] Authorized recipient: Yash Patil, `yashpatil76317@okicici`.
 - [x] Fees are non-refundable once payment has been verified.
@@ -20,7 +20,6 @@
 
 ## Must be confirmed before full public launch
 
-- [ ] `REGISTRATION_OPEN` is explicitly set to `true` or `false`, and `REGISTRATION_PRICE_TIER` is explicitly set to `early_bird` or `regular` in the production environment.
 - [ ] Production admin password hash and session/participant secrets are configured in the deployment secret store.
 - [ ] MongoDB/Atlas connectivity, indexes, backups, restore owner, request limit, HTTPS, and monitoring owner are confirmed.
 - [ ] Real UPI QR scan: phone shows correct payee, UPI ID, snapshotted amount, note/reference, and expected deep link. Cancel before payment.

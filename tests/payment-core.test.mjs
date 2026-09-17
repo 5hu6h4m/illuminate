@@ -10,8 +10,6 @@ import {
   isValidParticipantAccessToken,
   getConfirmedPaymentSnapshot,
   normalizeTransactionReference,
-  parseRegistrationOpen,
-  parseRegistrationPriceTier,
 } from "../src/lib/payment.ts";
 
 const PROD_SNAPSHOT = {
@@ -23,26 +21,8 @@ const PROD_SNAPSHOT = {
   mode: "production",
   pricingTier: "early_bird",
   calculatedAt: "2026-01-01T00:00:00.000Z",
+  registrationAvailable: true,
 };
-
-function withRegistrationControls(values, run) {
-  const original = {
-    REGISTRATION_OPEN: process.env.REGISTRATION_OPEN,
-    REGISTRATION_PRICE_TIER: process.env.REGISTRATION_PRICE_TIER,
-  };
-  try {
-    for (const [key, value] of Object.entries(values)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-    return run();
-  } finally {
-    for (const [key, value] of Object.entries(original)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-  }
-}
 
 test("buildUpiUri encodes payee, fixes 2dp amount, and binds publicId", () => {
   const uri = buildUpiUri(PROD_SNAPSHOT, "ILL26-ABC123");
@@ -101,52 +81,27 @@ test("payment state machine is terminal for verified and reversible for rejected
   assert.equal(canTransitionPayment("payment_pending", "verified"), false);
 });
 
-test("registration open parser accepts only explicit true or false", () => {
-  assert.equal(parseRegistrationOpen("true"), true);
-  assert.equal(parseRegistrationOpen("false"), false);
-  assert.equal(parseRegistrationOpen(undefined), null);
-  assert.equal(parseRegistrationOpen("TRUE"), null);
-  assert.equal(parseRegistrationOpen("1"), null);
+test("canonical snapshots use only the fixed schedule and server-selected tier", () => {
+  const earlyBird = getConfirmedPaymentSnapshot(new Date("2026-09-15T00:00:00+05:30"));
+  const regular = getConfirmedPaymentSnapshot(new Date("2026-09-24T00:00:00+05:30"));
+  assert.equal(earlyBird?.registrationAvailable, true);
+  assert.equal(earlyBird?.pricingTier, "early_bird");
+  assert.equal(earlyBird?.expectedAmount, 599);
+  assert.equal(regular?.pricingTier, "regular");
+  assert.equal(regular?.expectedAmount, 699);
+  assert.equal(getConfirmedPaymentSnapshot(new Date("2026-10-06T00:00:00+05:30")), null);
 });
 
-test("registration tier parser accepts only the organizer-controlled values", () => {
-  assert.equal(parseRegistrationPriceTier("early_bird"), "early_bird");
-  assert.equal(parseRegistrationPriceTier("regular"), "regular");
-  assert.equal(parseRegistrationPriceTier(undefined), null);
-  assert.equal(parseRegistrationPriceTier("599"), null);
-});
-
-test("canonical snapshots use only open state and the server-selected tier", () => {
-  withRegistrationControls({ REGISTRATION_OPEN: "true", REGISTRATION_PRICE_TIER: "early_bird" }, () => {
-    const snapshot = getConfirmedPaymentSnapshot();
-    assert.equal(snapshot?.pricingTier, "early_bird");
-    assert.equal(snapshot?.expectedAmount, 599);
-  });
-  withRegistrationControls({ REGISTRATION_OPEN: "true", REGISTRATION_PRICE_TIER: "regular" }, () => {
-    const snapshot = getConfirmedPaymentSnapshot();
-    assert.equal(snapshot?.pricingTier, "regular");
-    assert.equal(snapshot?.expectedAmount, 699);
-  });
-});
-
-test("closed, missing, or invalid controls fail safe without a payment snapshot", () => {
-  for (const controls of [
-    { REGISTRATION_OPEN: "false", REGISTRATION_PRICE_TIER: "early_bird" },
-    { REGISTRATION_OPEN: "false", REGISTRATION_PRICE_TIER: "regular" },
-    { REGISTRATION_OPEN: undefined, REGISTRATION_PRICE_TIER: "early_bird" },
-    { REGISTRATION_OPEN: "yes", REGISTRATION_PRICE_TIER: "early_bird" },
-    { REGISTRATION_OPEN: "true", REGISTRATION_PRICE_TIER: undefined },
-    { REGISTRATION_OPEN: "true", REGISTRATION_PRICE_TIER: "other" },
-  ]) {
-    withRegistrationControls(controls, () => assert.equal(getConfirmedPaymentSnapshot(), null));
-  }
-});
-
-test("manual close gates new snapshots without revoking existing production payment access", () => {
+test("scheduled close gates new snapshots without revoking existing production payment access", () => {
   const proofRoute = readFileSync(new URL("../src/app/api/payment/proof/[token]/route.ts", import.meta.url), "utf8");
   const qrRoute = readFileSync(new URL("../src/app/api/payment/status/[token]/qr/route.ts", import.meta.url), "utf8");
   assert.doesNotMatch(proofRoute, /getConfirmedPaymentSnapshot/);
   assert.doesNotMatch(qrRoute, /getConfirmedPaymentSnapshot/);
   assert.match(proofRoute, /registration\.payment\.snapshot\.mode !== "production"/);
   assert.match(qrRoute, /registration\.payment\.snapshot\.mode !== "production"/);
+});
+
+test("payment code does not read registration-control environment variables", () => {
+  const paymentSource = readFileSync(new URL("../src/lib/payment.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(paymentSource, /REGISTRATION_OPEN(?:_AT)?|REGISTRATION_PRICE_TIER/);
 });

@@ -7,8 +7,9 @@ This file is mandatory reading before changing public copy. Never infer or inven
 - Event identity: Illuminate 2026; host/organizer: E-Cell MET.
 - Legitimate association wording: associated with the Illuminate initiative of E-Cell IIT Bombay.
 - Registration is open to everyone.
-- Registration availability is controlled manually by the launch owner with the server-only `REGISTRATION_OPEN` value. There is no scheduled public opening or closing timestamp.
-- Pricing: the server-only organizer-selected `REGISTRATION_PRICE_TIER` maps Early Bird to ₹599 and Regular to ₹699. The client cannot select or override the tier.
+- Registration schedule: opens `2026-09-15T00:00:00+05:30`, Early Bird ends `2026-09-24T00:00:00+05:30`, and new registration closes `2026-10-06T00:00:00+05:30`.
+- Registration deadline public date: 5 October 2026. This is not the workshop event date.
+- Pricing: server-only fixed-schedule resolution maps Early Bird to ₹599 through 23 September 2026 and Regular to ₹699 from 24 September through 5 October 2026. The client cannot select or override the tier.
 - Direct UPI payment recipient: Yash Patil (`yashpatil76317@okicici`), INR. These facts are public payment instructions, not secrets.
 - Support: E-Cell MET Team, `met.iot.ecell@gmail.com`.
 - Policy facts: registration fees are non-refundable once payment has been verified; privacy and registration terms are published at `/privacy`, `/terms`, and `/refunds`.
@@ -28,7 +29,7 @@ Only `publishable` items are returned by the default public selector. `condition
 
 ## Still pending
 
-- Confirmed event date, time, venue, duration, capacity, and any public registration closing date/time.
+- Confirmed event date, time, venue, duration, and capacity.
 - Certificate issuer/wording, participant kit, campus visit, travel, E-Summit benefit, speakers, agenda, and participant selection criteria.
 - Data-retention schedule and infrastructure backup confirmation.
 - Manual real-device QR/payee/deep-link scan after production deployment.

@@ -4,7 +4,7 @@ import {
   createRegistrationDetailsSchema,
   normalizeIndianPhone,
 } from "../src/lib/registration-details.ts";
-import { resolveManualPricing } from "../src/lib/payment-pricing.ts";
+import { resolveScheduledPricing } from "../src/lib/payment-pricing.ts";
 
 test("normalizeIndianPhone handles +91, spaces, dashes, and 0-prefix edge cases", () => {
   assert.equal(normalizeIndianPhone("+91 98765 43210"), "9876543210");
@@ -30,13 +30,13 @@ test("registration schema rejects short/foreign/invalid phones and accepts canon
   }
 });
 
-test("manual pricing rejects invalid amount configuration", () => {
-  const good = { tier: "early_bird", earlyBirdAmount: 599, regularAmount: 699 };
-  assert.equal(resolveManualPricing(good).tier, "early_bird");
+test("scheduled pricing rejects invalid amount configuration", () => {
+  const good = { openAt: "2026-09-15T00:00:00+05:30", earlyBirdEndAt: "2026-09-24T00:00:00+05:30", closeAt: "2026-10-06T00:00:00+05:30", earlyBirdAmount: 599, regularAmount: 699 };
+  assert.equal(resolveScheduledPricing(good, new Date("2026-09-15T00:00:00+05:30")).tier, "early_bird");
   for (const bad of [
     { ...good, earlyBirdAmount: 0 },
     { ...good, regularAmount: -1 },
   ]) {
-    assert.throws(() => resolveManualPricing(bad), /invalid/i);
+    assert.throws(() => resolveScheduledPricing(bad, new Date()), /invalid/i);
   }
 });

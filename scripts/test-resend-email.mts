@@ -15,7 +15,7 @@ async function run() {
     isTest: true,
     environment: "development" as const,
     participant: { fullName: "Illuminate Email Test", email: "synthetic@example.invalid", normalizedEmail: "synthetic@example.invalid", phone: "9000000000", normalizedPhone: "9000000000" },
-    payment: { status: "payment_pending" as const, transactionReference: "DEV-EMAIL-TEST", proofHistory: [{ fileId: "synthetic", submittedAt: new Date(), transactionReference: "DEV-EMAIL-TEST" }], snapshot: { expectedAmount: 599, currency: "INR" as const, payeeName: "Preview Recipient", upiId: "preview-not-payable", eventKey: "illuminate-email-test", mode: "development_preview" as const, pricingTier: "development_preview" as const, calculatedAt: new Date().toISOString(), registrationOpenAt: null, earlyBirdEndsAt: null } },
+    payment: { status: "payment_pending" as const, transactionReference: "DEV-EMAIL-TEST", proofHistory: [{ fileId: "synthetic", submittedAt: new Date(), transactionReference: "DEV-EMAIL-TEST" }], snapshot: { registrationAvailable: true, expectedAmount: 599, currency: "INR" as const, payeeName: "Preview Recipient", upiId: "preview-not-payable", eventKey: "illuminate-email-test", mode: "development_preview" as const, pricingTier: "development_preview" as const, calculatedAt: new Date().toISOString(), registrationOpenAt: null, earlyBirdEndsAt: null } },
   };
   const resend = new Resend(apiKey);
   for (const kind of ["paymentSubmitted", "paymentVerified"] as const) {

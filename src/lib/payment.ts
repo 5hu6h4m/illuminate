@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { event, isPaymentRegistrationAvailable } from "@/config/event";
-import { resolveManualPricing, type PricingTier } from "@/lib/payment-pricing";
+import { resolveScheduledPricing, type PricingTier } from "@/lib/payment-pricing";
 
 export const CURRENT_SCHEMA_VERSION = 2 as const;
 export const PAYMENT_STATUSES = ["payment_pending", "submitted_for_verification", "verified", "rejected"] as const;
@@ -16,6 +16,7 @@ export type PaymentSnapshot = {
   eventKey: string;
   mode: "production" | "development_preview";
   pricingTier: PricingTier | "development_preview";
+  registrationAvailable: boolean;
   calculatedAt: string;
 };
 
@@ -30,39 +31,13 @@ export function canTransitionPayment(from: PaymentStatus, to: PaymentStatus): bo
   return PAYMENT_TRANSITIONS[from].includes(to);
 }
 
-/**
- * Production registration remains unavailable unless the launch owner sets
- * one of these exact values. There is deliberately no inferred default.
- */
-export function parseRegistrationOpen(value: string | undefined): boolean | null {
-  const raw = value?.trim();
-  if (raw === "true") return true;
-  if (raw === "false") return false;
-  return null;
-}
-
-export function getRegistrationOpen(): boolean {
-  return parseRegistrationOpen(process.env.REGISTRATION_OPEN) === true;
-}
-
-export function parseRegistrationPriceTier(value: string | undefined): PricingTier | null {
-  const raw = value?.trim();
-  return raw === "early_bird" || raw === "regular" ? raw : null;
-}
-
-export function getRegistrationPriceTier(): PricingTier | null {
-  return parseRegistrationPriceTier(process.env.REGISTRATION_PRICE_TIER);
-}
-
-export function getConfirmedPaymentSnapshot(): PaymentSnapshot | null {
+export function getConfirmedPaymentSnapshot(at: Date = new Date()): PaymentSnapshot | null {
   if (!isPaymentRegistrationAvailable()) return null;
-  if (!getRegistrationOpen()) return null;
-  const tier = getRegistrationPriceTier();
-  if (!tier) return null;
   const payeeName = (event.payment.recipient.value as string | null)?.trim();
   const upiId = (event.payment.upiId.value as string | null)?.trim();
   if (!payeeName || !upiId || event.fee.currency !== "INR") return null;
-  const pricing = resolveManualPricing({ tier, earlyBirdAmount: event.fee.pricing.earlyBirdAmount, regularAmount: event.fee.pricing.regularAmount });
+  const pricing = resolveScheduledPricing({ openAt: event.registration.openAt, earlyBirdEndAt: event.registration.earlyBirdEndAt, closeAt: event.registration.closeAt, earlyBirdAmount: event.fee.pricing.earlyBirdAmount, regularAmount: event.fee.pricing.regularAmount }, at);
+  if (!pricing.registrationAvailable || pricing.tier === null || pricing.amount === null) return null;
   return {
     expectedAmount: pricing.amount,
     currency: "INR",
@@ -71,6 +46,7 @@ export function getConfirmedPaymentSnapshot(): PaymentSnapshot | null {
     eventKey: `illuminate-${event.identity.edition}`,
     mode: "production",
     pricingTier: pricing.tier,
+    registrationAvailable: pricing.registrationAvailable,
     calculatedAt: new Date().toISOString(),
   };
 }
@@ -85,7 +61,7 @@ export function isDevE2EPreviewEnabled(): boolean {
 export function getDevelopmentPreviewSnapshot(): PaymentSnapshot | null {
   if (!isDevE2EPreviewEnabled()) return null;
   // Versioned only to isolate current TEST records from an earlier preview schema.
-  return { expectedAmount: null, currency: "INR", payeeName: "Preview Recipient", upiId: "preview-not-payable", eventKey: "illuminate-development-preview-v2", mode: "development_preview", pricingTier: "development_preview", calculatedAt: new Date().toISOString() };
+  return { expectedAmount: null, currency: "INR", payeeName: "Preview Recipient", upiId: "preview-not-payable", eventKey: "illuminate-development-preview-v2", mode: "development_preview", pricingTier: "development_preview", registrationAvailable: false, calculatedAt: new Date().toISOString() };
 }
 
 export function buildUpiUri(snapshot: PaymentSnapshot, publicId: string): string {

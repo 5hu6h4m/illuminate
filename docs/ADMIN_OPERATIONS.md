@@ -20,7 +20,7 @@ Open `/admin`, sign in with the team password, and sign out when finished. The p
 4. Compare the account result against the immutable registration snapshot, including tier and expected amount.
 5. Tick the confirmation that the recipient account was checked, then choose **Verify payment**.
 
-Do not verify based on a screenshot alone. The application has no bank or UPI settlement integration. Early Bird snapshots selected by the organizer expect ₹599; Regular snapshots expect ₹699. Never recalculate an older registration from the price currently displayed on the landing page.
+Do not verify based on a screenshot alone. The application has no bank or UPI settlement integration. Early Bird snapshots issued through 23 September 2026 expect ₹599; Regular snapshots issued from 24 September through 5 October 2026 expect ₹699. Never recalculate an older registration from the price currently displayed on the landing page.
 
 ## Reject and request resubmission
 

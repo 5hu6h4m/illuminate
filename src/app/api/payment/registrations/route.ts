@@ -16,21 +16,45 @@ export async function POST(request: Request) {
   // confirmed payment facts in a local configuration.
   const developmentSnapshot = getDevelopmentPreviewSnapshot();
   const snapshot = developmentSnapshot ?? getConfirmedPaymentSnapshot();
-  if (!snapshot) return apiError(503, "PAYMENT_NOT_AVAILABLE", "Payment registration is not available yet.");
-  if (!isDbConfigured()) return apiError(503, "REGISTRATION_UNAVAILABLE", "Registration is unavailable. Please try again later.");
+  if (!snapshot) {
+    console.error("[registration_diagnostic] PAYMENT_SNAPSHOT_UNAVAILABLE");
+    return apiError(503, "PAYMENT_NOT_AVAILABLE", "Payment registration is not available yet.");
+  }
+  if (!isDbConfigured()) {
+    console.error("[registration_diagnostic] REGISTRATION_DB_NOT_CONFIGURED");
+    return apiError(503, "REGISTRATION_UNAVAILABLE", "Registration is unavailable. Please try again later.");
+  }
   const idempotencyKey = request.headers.get("idempotency-key")?.trim();
   if (!idempotencyKey || idempotencyKey.length < 16 || idempotencyKey.length > 200) return apiError(400, "INVALID_IDEMPOTENCY_KEY", "Please retry from the registration form.");
   try {
-    if (!await enforceRateLimit("pending-registration", clientIp(request), 12, 15 * 60_000)) return apiError(429, "RATE_LIMITED", "Too many attempts. Please try again shortly.");
+    if (!await enforceRateLimit("pending-registration", clientIp(request), 12, 15 * 60_000)) {
+      console.warn("[registration_diagnostic] REGISTRATION_RATE_LIMITED");
+      return apiError(429, "RATE_LIMITED", "Too many attempts. Please try again shortly.");
+    }
     const parsed = PendingRegistrationRequestSchema.safeParse(await request.json());
     if (!parsed.success) return apiError(422, "INVALID_DETAILS", "Please review your registration details.");
+
     const tokenSecretCheck = generateParticipantAccessToken("ILL26-ABCDEF");
     if (!tokenSecretCheck) {
-      console.error("[payment] PARTICIPANT_TOKEN_SECRET is not configured; registration creation is disabled.");
+      console.error("[registration_diagnostic] PARTICIPANT_TOKEN_SECRET_MISSING");
       return apiError(503, "REGISTRATION_UNAVAILABLE", "Registration is unavailable. Please try again later.");
     }
-    await ensurePaymentIndexes();
-    const collection = await getRegistrationsCollection();
+
+    try {
+      await ensurePaymentIndexes();
+    } catch (error) {
+      console.error("[registration_diagnostic] REGISTRATION_INDEX_INIT_FAILED", error);
+      return apiError(503, "REGISTRATION_UNAVAILABLE", "Registration is unavailable. Please try again later.");
+    }
+
+    let collection;
+    try {
+      collection = await getRegistrationsCollection();
+    } catch (error) {
+      console.error("[registration_diagnostic] REGISTRATION_DB_CONNECTION_FAILED", error);
+      return apiError(503, "REGISTRATION_UNAVAILABLE", "Registration is unavailable. Please try again later.");
+    }
+
     const idempotencyKeyHash = createHash("sha256").update(idempotencyKey).digest("hex");
     const details = parsed.data.details;
     const existingRequest = await collection.findOne({ schemaVersion: 2, eventKey: snapshot.eventKey, idempotencyKeyHash });
@@ -82,7 +106,10 @@ export async function POST(request: Request) {
         await collection.insertOne(registration);
         return sensitiveJson({ publicId, statusUrl: `/registration/status/${token}`, created: true }, { status: 201 });
       } catch (error: unknown) {
-        if ((error as { code?: number }).code !== 11000) throw error;
+        if ((error as { code?: number }).code !== 11000) {
+          console.error("[registration_diagnostic] REGISTRATION_INSERT_FAILED", error);
+          throw error;
+        }
         const replay = await collection.findOne({ schemaVersion: 2, eventKey: snapshot.eventKey, idempotencyKeyHash });
         if (replay) {
           if (!isIdempotentReplayForIdentity(replay.participant, { normalizedEmail: details.email, normalizedPhone: details.phone })) {
@@ -98,7 +125,8 @@ export async function POST(request: Request) {
       }
     }
     return apiError(500, "SERVER_ERROR", "Could not create your registration. Please retry.");
-  } catch {
+  } catch (error) {
+    console.error("[registration_diagnostic] UNHANDLED_REGISTRATION_ERROR", error);
     return apiError(503, "REGISTRATION_UNAVAILABLE", "Registration is unavailable. Please try again later.");
   }
 }

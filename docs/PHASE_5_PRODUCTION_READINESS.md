@@ -9,13 +9,13 @@ Status legend: **PASS** = verified in code or an executed check; **PENDING CONFI
 ## A. Event Content
 
 - **PASS** Illuminate 2026, E-Cell MET, and the approved association wording are the only organizational claims.
-- **PASS** Registration is open to everyone when the organizer enables it. No public automatic closing date/time is claimed.
+- **PASS** Registration is open to everyone from 15 September through 5 October 2026. Public registration deadline: 5 October 2026.
 - **PENDING CONFIGURATION** Event date, time, venue, capacity, and unconfirmed benefits remain unpublished.
 
 ## B. Registration and Payment
 
 - **PASS** Server-side creation validates details, uses idempotency, duplicate protection, MongoDB persistence, and immutable payment snapshots.
-- **PENDING CONFIGURATION** Server-only `REGISTRATION_OPEN` controls new registration availability and `REGISTRATION_PRICE_TIER` selects either ₹599 Early Bird or ₹699 Regular. Client values cannot select price or tier, and missing or invalid controls keep production payment registration unavailable.
+- **PASS** Server-only fixed-schedule resolution selects ₹599 Early Bird through 23 September 2026 and ₹699 Regular from 24 September through 5 October 2026. Client values cannot select price or tier.
 - **PASS** Canonical INR direct UPI recipient: Yash Patil / `yashpatil76317@okicici`. Display, QR, deep link, and snapshot use the same trusted source.
 - **PASS** Payment proof is evidence only. Manual account verification remains required before a real seat is confirmed.
 - **PENDING CONFIGURATION** No approved expiry policy exists for abandoned payment-pending registrations. Do not invent one.
@@ -45,7 +45,7 @@ Status legend: **PASS** = verified in code or an executed check; **PENDING CONFI
 
 ## E. Required launch actions
 
-1. Configure `MONGODB_URI`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET`, `PARTICIPANT_TOKEN_SECRET`, `REGISTRATION_OPEN`, and `REGISTRATION_PRICE_TIER` in the production secret store.
+1. Configure `MONGODB_URI`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET`, and `PARTICIPANT_TOKEN_SECRET` in the production secret store.
 2. Run `npm run qa:production` and `npm run launch:check` with deployment-equivalent configuration.
 3. Confirm hosting supports Node route handlers, MongoDB/GridFS, at least 4 MB multipart uploads, HTTPS, and backups.
 4. Scan the real QR on a phone, inspect recipient, amount, note and deep link, then cancel before payment.

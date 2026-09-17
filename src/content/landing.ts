@@ -18,7 +18,7 @@ export const faqItems = [
   { question: "Who is organising it?", answer: `${event.organizer.name} is the host organiser. ${event.association.label}.` },
   { question: "When and where will it take place?", answer: "The schedule and venue will be announced here once finalised. Illuminate is an interactive workshop experience hosted by E-Cell MET." },
   { question: "Who can attend?", answer: "Illuminate is open to everyone — any college, branch, or year. No prior startup experience is needed." },
-  { question: "What is the fee?", answer: "Early Bird is ₹599 during the Early Bird registration window, followed by Regular at ₹699. Your exact payable amount is shown in your secure payment instructions." },
+  { question: "What is the fee?", answer: "Early Bird is ₹599 through 23 September 2026. Regular is ₹699 from 24 September to 5 October 2026. Your exact payable amount is shown in your secure payment instructions." },
   { question: "Will I get a certificate?", answer: "Certificate details will be listed here if confirmed. Only confirmed inclusions are published on this site." },
   { question: "What is the timing of the workshop?", answer: "Session flow and reporting time will be announced with the confirmed schedule." },
   { question: "How will payment work?", answer: "You will receive direct UPI instructions after registration. Pay exactly the shown amount, submit payment evidence, and your seat is confirmed only after manual verification. Your private status link shows real-time verification status." },

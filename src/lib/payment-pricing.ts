@@ -1,23 +1,40 @@
-export type ManualPricingConfig = {
-  tier: PricingTier;
+export type RegistrationScheduleConfig = {
+  openAt: string;
+  earlyBirdEndAt: string;
+  closeAt: string;
   earlyBirdAmount: number;
   regularAmount: number;
 };
 
 export type PricingTier = "early_bird" | "regular";
 
-export type ResolvedPricing = {
-  tier: PricingTier;
-  amount: number;
+export type ScheduledPricing = {
+  registrationAvailable: boolean;
+  tier: PricingTier | null;
+  amount: number | null;
 };
 
-export function resolveManualPricing(config: ManualPricingConfig): ResolvedPricing {
-  if ((config.tier !== "early_bird" && config.tier !== "regular") || config.earlyBirdAmount <= 0 || config.regularAmount <= 0) {
-    throw new Error("Manual pricing configuration is invalid.");
+function parseScheduleInstant(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/.test(value)) return null;
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+}
+
+export function resolveScheduledPricing(config: RegistrationScheduleConfig, at: Date): ScheduledPricing {
+  const openAt = parseScheduleInstant(config.openAt);
+  const earlyBirdEndAt = parseScheduleInstant(config.earlyBirdEndAt);
+  const closeAt = parseScheduleInstant(config.closeAt);
+  if (!openAt || !earlyBirdEndAt || !closeAt || !Number.isFinite(at.getTime()) || openAt >= earlyBirdEndAt || earlyBirdEndAt >= closeAt || !Number.isInteger(config.earlyBirdAmount) || !Number.isInteger(config.regularAmount) || config.earlyBirdAmount <= 0 || config.regularAmount <= 0) {
+    throw new Error("Fixed registration schedule is invalid.");
   }
+  if (at < openAt || at >= closeAt) {
+    return { registrationAvailable: false, tier: null, amount: null };
+  }
+  const tier: PricingTier = at < earlyBirdEndAt ? "early_bird" : "regular";
   return {
-    tier: config.tier,
-    amount: config.tier === "early_bird" ? config.earlyBirdAmount : config.regularAmount,
+    registrationAvailable: true,
+    tier,
+    amount: tier === "early_bird" ? config.earlyBirdAmount : config.regularAmount,
   };
 }
 

@@ -1,7 +1,7 @@
 import { event, isPaymentRegistrationAvailable } from "@/config/event";
 import { getDb, isDbConfigured } from "@/lib/mongodb";
-import { buildUpiUri, getConfirmedPaymentSnapshot, getDevelopmentPreviewSnapshot, isDevE2EPreviewEnabled, isDevPaymentPreviewEnabled, parseRegistrationOpen, parseRegistrationPriceTier } from "@/lib/payment";
-import { resolveManualPricing } from "@/lib/payment-pricing";
+import { buildUpiUri, getConfirmedPaymentSnapshot, getDevelopmentPreviewSnapshot, isDevE2EPreviewEnabled, isDevPaymentPreviewEnabled } from "@/lib/payment";
+import { resolveScheduledPricing } from "@/lib/payment-pricing";
 import { isRegistrationPreviewEnabled } from "@/lib/registration-preview";
 
 type Level = "PASS" | "PENDING" | "BLOCKER";
@@ -63,6 +63,7 @@ function checkPaymentBuilderInvariant() {
     eventKey: "launch-check-fixture",
     mode: "production",
     pricingTier: "early_bird",
+    registrationAvailable: true,
     calculatedAt: "2026-01-01T00:00:00.000Z",
   }, "ILL26-ABC123");
   const query = new URL(uri).searchParams;
@@ -72,6 +73,28 @@ function checkPaymentBuilderInvariant() {
     && query.get("am") === "123.45"
     && query.get("cu") === "INR"
     && query.get("tn") === "ILL26-ABC123";
+}
+
+function checkFixedScheduleInvariant() {
+  const schedule = {
+    openAt: event.registration.openAt,
+    earlyBirdEndAt: event.registration.earlyBirdEndAt,
+    closeAt: event.registration.closeAt,
+    earlyBirdAmount: event.fee.pricing.earlyBirdAmount,
+    regularAmount: event.fee.pricing.regularAmount,
+  };
+  try {
+    const openAt = new Date(schedule.openAt);
+    const earlyBirdEndAt = new Date(schedule.earlyBirdEndAt);
+    const closeAt = new Date(schedule.closeAt);
+    const beforeOpen = resolveScheduledPricing(schedule, new Date(openAt.getTime() - 1));
+    const earlyBird = resolveScheduledPricing(schedule, openAt);
+    const regular = resolveScheduledPricing(schedule, earlyBirdEndAt);
+    const afterClose = resolveScheduledPricing(schedule, closeAt);
+    return !beforeOpen.registrationAvailable && earlyBird.registrationAvailable && earlyBird.tier === "early_bird" && earlyBird.amount === event.fee.pricing.earlyBirdAmount && regular.registrationAvailable && regular.tier === "regular" && regular.amount === event.fee.pricing.regularAmount && !afterClose.registrationAvailable;
+  } catch {
+    return false;
+  }
 }
 
 async function checkDatabase() {
@@ -109,22 +132,17 @@ async function run() {
   const participantSecretConfigured = hasSufficientSecret("PARTICIPANT_TOKEN_SECRET");
   const previewInvariant = checkPreviewProductionInvariant();
   const paymentBuilderInvariant = checkPaymentBuilderInvariant();
-  const registrationOpen = parseRegistrationOpen(process.env.REGISTRATION_OPEN);
-  const priceTier = parseRegistrationPriceTier(process.env.REGISTRATION_PRICE_TIER);
-  const configuredPricing = priceTier
-    ? resolveManualPricing({ tier: priceTier, earlyBirdAmount: event.fee.pricing.earlyBirdAmount, regularAmount: event.fee.pricing.regularAmount })
-    : null;
-  const paymentSnapshot = getConfirmedPaymentSnapshot();
+  const fixedScheduleValid = checkFixedScheduleInvariant();
+  const earlyBirdSnapshot = getConfirmedPaymentSnapshot(new Date(event.registration.openAt));
+  const regularSnapshot = getConfirmedPaymentSnapshot(new Date(event.registration.earlyBirdEndAt));
   result(adminHashConfigured ? "PASS" : "BLOCKER", adminHashConfigured ? "Admin password hash configured." : "ADMIN_PASSWORD_HASH is missing or malformed.");
   result(adminSessionConfigured ? "PASS" : "BLOCKER", adminSessionConfigured ? "Admin session secret configured." : "ADMIN_SESSION_SECRET must be at least 32 characters.");
   result(participantSecretConfigured ? "PASS" : "BLOCKER", participantSecretConfigured ? "Participant token secret configured." : "PARTICIPANT_TOKEN_SECRET must be at least 32 characters.");
   result(previewInvariant ? "PASS" : "BLOCKER", previewInvariant ? "Preview flags are hard-disabled when NODE_ENV is production." : "Production preview invariant failed.");
   result(paymentBuilderInvariant ? "PASS" : "BLOCKER", paymentBuilderInvariant ? "Canonical UPI URI builder preserves encoded fixture facts." : "Canonical UPI URI invariant failed.");
-  result(registrationOpen !== null ? "PASS" : "BLOCKER", registrationOpen !== null ? `REGISTRATION_OPEN is valid (${registrationOpen ? "open" : "closed"}).` : "REGISTRATION_OPEN must be exactly true or false; new payment registrations remain unavailable.");
-  result(priceTier && configuredPricing ? "PASS" : "BLOCKER", priceTier && configuredPricing ? `REGISTRATION_PRICE_TIER is valid and maps to INR ${configuredPricing.amount}.` : "REGISTRATION_PRICE_TIER must be early_bird or regular; new payment registrations remain unavailable.");
-  const paymentSnapshotValid = isPaymentRegistrationAvailable() && registrationOpen === true && Boolean(configuredPricing) && paymentSnapshot?.pricingTier === configuredPricing?.tier && paymentSnapshot?.expectedAmount === configuredPricing?.amount;
-  const manualCloseSafe = isPaymentRegistrationAvailable() && registrationOpen === false && paymentSnapshot === null;
-  result(registrationOpen === false ? (manualCloseSafe ? "PASS" : "BLOCKER") : (paymentSnapshotValid ? "PASS" : "BLOCKER"), registrationOpen === false ? (manualCloseSafe ? "Manual close safely prevents new payment registrations." : "Manual close safety check failed.") : (paymentSnapshotValid ? "Confirmed payment configuration creates the organizer-selected canonical snapshot." : "Confirmed payment configuration is incomplete or its canonical snapshot could not be created."));
+  result(fixedScheduleValid ? "PASS" : "BLOCKER", fixedScheduleValid ? "Fixed registration schedule is valid and covers the open, Early Bird, Regular, and closed boundaries." : "Fixed registration schedule is invalid or does not produce the required boundary behavior.");
+  const paymentSnapshotsValid = isPaymentRegistrationAvailable() && earlyBirdSnapshot?.pricingTier === "early_bird" && earlyBirdSnapshot.expectedAmount === event.fee.pricing.earlyBirdAmount && regularSnapshot?.pricingTier === "regular" && regularSnapshot.expectedAmount === event.fee.pricing.regularAmount;
+  result(paymentSnapshotsValid ? "PASS" : "BLOCKER", paymentSnapshotsValid ? "Canonical payment snapshots map the fixed schedule to the confirmed amounts." : "Canonical payment snapshots could not be created for the fixed schedule.");
   result(hasProductionEmailConfiguration() ? "PASS" : "PENDING", hasProductionEmailConfiguration() ? "Transactional email configuration is present." : "Transactional email configuration incomplete (RESEND_API_KEY, RESEND_FROM_EMAIL, RESEND_REPLY_TO_EMAIL, and APP_BASE_URL are required for delivery).");
   await checkDatabase();
 
@@ -147,7 +165,7 @@ async function run() {
     const configured = String(fact.confirmation) === "confirmed";
     result(configured ? "PASS" : "PENDING", configured ? `${label} configured.` : `${label} remains intentionally pending.`);
   }
-  result("PASS", "Registration availability is manually controlled; no scheduled opening or closing timestamp is used.");
+  result("PASS", "Registration availability is controlled only by the fixed source schedule; no registration-control environment variable is used.");
 
   console.log(`\nRESULT: ${blockers ? "NO-GO" : pending ? "TECHNICALLY READY — EVENT CONFIGURATION INCOMPLETE" : "READY"}`);
   if (blockers) process.exitCode = 1;
