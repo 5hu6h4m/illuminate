@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 process.env.PARTICIPANT_TOKEN_SECRET = "email-template-test-secret-that-is-long-enough";
-const { buildTransactionalEmail, emailEventKey } = await import("../src/lib/email/transactional-email.ts");
+const { buildEmailJSPayload, emailEventKey } = await import("../src/lib/email/transactional-email.ts");
 
 function registration(overrides = {}) {
   return {
@@ -15,23 +15,29 @@ function registration(overrides = {}) {
   };
 }
 
-test("payment-submitted template uses the immutable snapshot and never claims confirmation", () => {
-  const message = buildTransactionalEmail("paymentSubmitted", registration(), "https://illuminate.example");
-  assert.match(message.subject, /Payment submitted/);
-  assert.match(message.text, /Verification pending/);
-  assert.match(message.text, /₹599/);
-  assert.match(message.text, /Early Bird/);
-  assert.doesNotMatch(message.text, /registration is now confirmed/i);
-  assert.match(message.text, /registration\/status\/ILL26-ABCD23\./);
+const mockConfig = {
+  serviceId: "srv_test",
+  submittedTemplateId: "tpl_submitted",
+  verifiedTemplateId: "tpl_verified",
+  publicKey: "pub_test",
+  privateKey: "priv_test",
+  baseUrl: "https://illuminate.example"
+};
+
+test("payment-submitted payload uses the immutable snapshot and includes transaction reference", () => {
+  const payload = buildEmailJSPayload("paymentSubmitted", registration(), mockConfig);
+  assert.equal(payload.template_id, "tpl_submitted");
+  assert.equal(payload.template_params.amount, "₹599");
+  assert.equal(payload.template_params.transaction_reference, "TESTREF123");
+  assert.match(payload.template_params.status_url, /registration\/status\/ILL26-ABCD23\./);
 });
 
-test("confirmed template has only confirmed wording and does not publish pending logistics", () => {
-  const message = buildTransactionalEmail("paymentVerified", registration({ payment: { ...registration().payment, snapshot: { ...registration().payment.snapshot, expectedAmount: 699, pricingTier: "regular" } } }), "https://illuminate.example");
-  assert.match(message.subject, /Registration confirmed/);
-  assert.match(message.text, /₹699/);
-  assert.match(message.text, /Regular/);
-  assert.match(message.text, /Final event date, time and venue details will be communicated once confirmed/);
-  assert.doesNotMatch(message.text, /10:00 AM|IOT Building/);
+test("confirmed template uses regular snapshot and excludes transaction reference", () => {
+  const payload = buildEmailJSPayload("paymentVerified", registration({ payment: { ...registration().payment, snapshot: { ...registration().payment.snapshot, expectedAmount: 699, pricingTier: "regular" } } }), mockConfig);
+  assert.equal(payload.template_id, "tpl_verified");
+  assert.equal(payload.template_params.amount, "₹699");
+  assert.equal(payload.template_params.transaction_reference, undefined);
+  assert.match(payload.template_params.status_url, /registration\/status\/ILL26-ABCD23\./);
 });
 
 test("email event keys are stable per immutable submission version", () => {

@@ -24,11 +24,13 @@ function hasSufficientSecret(name: string) {
   return (process.env[name]?.trim().length ?? 0) >= 32;
 }
 function hasProductionEmailConfiguration() {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.RESEND_FROM_EMAIL?.trim();
-  const replyTo = process.env.RESEND_REPLY_TO_EMAIL?.trim();
+  const serviceId = process.env.EMAILJS_SERVICE_ID?.trim();
+  const submittedTemplateId = process.env.EMAILJS_PAYMENT_SUBMITTED_TEMPLATE_ID?.trim();
+  const verifiedTemplateId = process.env.EMAILJS_PAYMENT_VERIFIED_TEMPLATE_ID?.trim();
+  const publicKey = process.env.EMAILJS_PUBLIC_KEY?.trim();
+  const privateKey = process.env.EMAILJS_PRIVATE_KEY?.trim();
   const baseUrl = process.env.APP_BASE_URL?.trim();
-  if (!apiKey || !from || !replyTo || !baseUrl) return false;
+  if (!serviceId || !submittedTemplateId || !verifiedTemplateId || !publicKey || !privateKey || !baseUrl) return false;
   try { return new URL(baseUrl).protocol === "https:"; } catch { return false; }
 }
 
@@ -143,7 +145,7 @@ async function run() {
   result(fixedScheduleValid ? "PASS" : "BLOCKER", fixedScheduleValid ? "Fixed registration schedule is valid and covers the open, Early Bird, Regular, and closed boundaries." : "Fixed registration schedule is invalid or does not produce the required boundary behavior.");
   const paymentSnapshotsValid = isPaymentRegistrationAvailable() && earlyBirdSnapshot?.pricingTier === "early_bird" && earlyBirdSnapshot.expectedAmount === event.fee.pricing.earlyBirdAmount && regularSnapshot?.pricingTier === "regular" && regularSnapshot.expectedAmount === event.fee.pricing.regularAmount;
   result(paymentSnapshotsValid ? "PASS" : "BLOCKER", paymentSnapshotsValid ? "Canonical payment snapshots map the fixed schedule to the confirmed amounts." : "Canonical payment snapshots could not be created for the fixed schedule.");
-  result(hasProductionEmailConfiguration() ? "PASS" : "PENDING", hasProductionEmailConfiguration() ? "Transactional email configuration is present." : "Transactional email configuration incomplete (RESEND_API_KEY, RESEND_FROM_EMAIL, RESEND_REPLY_TO_EMAIL, and APP_BASE_URL are required for delivery).");
+  result(hasProductionEmailConfiguration() ? "PASS" : "PENDING", hasProductionEmailConfiguration() ? "Transactional email configuration is present." : "Transactional email configuration incomplete (EMAILJS_SERVICE_ID, EMAILJS_PAYMENT_SUBMITTED_TEMPLATE_ID, EMAILJS_PAYMENT_VERIFIED_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, EMAILJS_PRIVATE_KEY, and APP_BASE_URL are required for delivery).");
   await checkDatabase();
 
   const configurationFacts = [
