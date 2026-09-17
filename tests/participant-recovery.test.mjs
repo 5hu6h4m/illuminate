@@ -64,3 +64,12 @@ test("login UI exists on both /login and /registration/recover", () => {
   assert.match(component, /\/api\/payment\/recover/);
   assert.match(component, /ILL26-ABCDEF/);
 });
+
+test("status page highlights the Illuminate ID with copy and login hint", () => {
+  const status = readFileSync(new URL("../src/components/registration/PaymentStatusClient.tsx", import.meta.url), "utf8");
+  assert.match(status, /Your Illuminate ID/);
+  assert.match(status, /data-testid="illuminate-id"/);
+  assert.match(status, /Copy ID/);
+  assert.match(status, /clipboard\.writeText\(data\.publicId\)/);
+  assert.match(status, /log back in/);
+});
