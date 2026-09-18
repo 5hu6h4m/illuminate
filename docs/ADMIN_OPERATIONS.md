@@ -53,7 +53,7 @@ The record review view shows safe notification status for submission and verific
 
 ## Lost private status link
 
-Do not recover a link from only a registration reference, email, or phone; those are not credentials. Participants can self-serve at `/login` with their Illuminate ID plus the email or mobile they registered with. Otherwise ask the participant to contact E-Cell MET Team at `met.iot.ecell@gmail.com`, then follow an organizer-approved identity-verification process.
+Participants can self-serve at `/login` with their registered email or mobile number alone — Illuminate ID is optional and only speeds up lookup (if supplied it must match the same record). ID-alone never re-issues a link; a contact is always required. Login failures return a generic “no match” message and are rate-limited per IP + per contact/ID. Otherwise ask the participant to contact E-Cell MET Team at `met.iot.ecell@gmail.com`, then follow an organizer-approved identity-verification process.
 
 ## Database issue or incident
 

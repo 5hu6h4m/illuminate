@@ -65,12 +65,17 @@ export async function enforceRegistrationCreationRateLimit(input: { ip: string; 
   return { ok: true, retryAfterSeconds: 0 };
 }
 
-export async function enforceRecoveryRateLimit(input: { ip: string; publicId: string }): Promise<{ ok: boolean; retryAfterSeconds: number }> {
+export async function enforceRecoveryRateLimit(input: { ip: string; identity?: string; publicId?: string }): Promise<{ ok: boolean; retryAfterSeconds: number }> {
   if (input.ip && input.ip !== "unknown") {
     const ipOk = await enforceRateLimit("recovery-ip", input.ip, RECOVERY_IP_LIMIT, RECOVERY_IP_WINDOW_MS);
     if (!ipOk) return { ok: false, retryAfterSeconds: Math.ceil(RECOVERY_IP_WINDOW_MS / 1000) };
   }
-  const idOk = await enforceRateLimit("recovery-per-id", `publicId:${input.publicId.toUpperCase()}`, RECOVERY_IDENTITY_LIMIT, RECOVERY_IDENTITY_WINDOW_MS);
+  // Contact-based bucket: caller passes normalized identifier (email lowercased,
+  // phone digits, or publicId uppercased). Backward compat: `publicId` alias.
+  const rawIdentity = (input.identity ?? input.publicId ?? "").trim();
+  if (!rawIdentity) return { ok: true, retryAfterSeconds: 0 };
+  const normalizedIdentity = rawIdentity.toLowerCase();
+  const idOk = await enforceRateLimit("recovery-per-id", `login:${normalizedIdentity}`, RECOVERY_IDENTITY_LIMIT, RECOVERY_IDENTITY_WINDOW_MS);
   if (!idOk) return { ok: false, retryAfterSeconds: Math.ceil(RECOVERY_IDENTITY_WINDOW_MS / 1000) };
   return { ok: true, retryAfterSeconds: 0 };
 }

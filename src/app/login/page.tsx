@@ -38,9 +38,9 @@ export default function LoginPage() {
             </div>
             <aside className="registration-summary" aria-label="Login help">
               <p className="text-eyebrow">Illuminate {event.identity.edition}</p>
-              <h2>Your Illuminate ID</h2>
-              <p>Your ID looks like <strong className="font-mono">ILL26-ABCDEF</strong> and was shown right after registration.</p>
-              <div><span>Login needs</span><strong>ID + registered email or mobile</strong></div>
+              <h2>Log in with email or mobile</h2>
+              <p>Use the email or mobile number you registered with. Your Illuminate ID (<strong className="font-mono">ILL26-XXXXXX</strong>) is optional — it helps find you faster.</p>
+              <div><span>Login needs</span><strong>Email or mobile (ID optional)</strong></div>
               <div><span>New participant?</span><strong><Link className="underline" href="/register">Register instead</Link></strong></div>
             </aside>
           </div>

@@ -18,12 +18,12 @@ const newIdempotencyKey = () => {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`;
 };
 const registrationCreationMessages: Record<string, string> = {
-  REGISTRATION_ALREADY_STARTED: "A registration is already in progress for these details. Recover your private link with your Illuminate ID instead of registering again, or contact E-Cell MET Team at met.iot.ecell@gmail.com if you no longer have it.",
-  REGISTRATION_REQUIRES_ACTION: "A registration needs action. Recover your private link with your Illuminate ID to resubmit payment proof, or contact E-Cell MET Team at met.iot.ecell@gmail.com if you no longer have it.",
-  PAYMENT_ALREADY_SUBMITTED: "Payment proof for this registration is already awaiting verification. Recover your private link with your Illuminate ID for status, or contact E-Cell MET Team at met.iot.ecell@gmail.com if you no longer have it.",
-  REGISTRATION_ALREADY_COMPLETED: "This registration is already complete. Recover your private link with your Illuminate ID for status, or contact E-Cell MET Team at met.iot.ecell@gmail.com if you no longer have it.",
-  RATE_LIMITED: "Too many registration attempts right now. Your details are still on this form — wait a minute and retry. If you already registered, log in with your Illuminate ID instead.",
-  REGISTRATION_UNAVAILABLE: "Registration is temporarily unavailable (high demand or server issue). Your details are still on this form — please retry in a minute. If you already have an Illuminate ID, log in instead.",
+  REGISTRATION_ALREADY_STARTED: "A registration is already in progress for these details. Recover your private link with your email or mobile (Illuminate ID optional) instead of registering again, or contact E-Cell MET Team at met.iot.ecell@gmail.com if you no longer have it.",
+  REGISTRATION_REQUIRES_ACTION: "A registration needs action. Recover your private link with your email or mobile (Illuminate ID optional) to resubmit payment proof, or contact E-Cell MET Team at met.iot.ecell@gmail.com if you no longer have it.",
+  PAYMENT_ALREADY_SUBMITTED: "Payment proof for this registration is already awaiting verification. Recover your private link with your email or mobile (Illuminate ID optional) for status, or contact E-Cell MET Team at met.iot.ecell@gmail.com if you no longer have it.",
+  REGISTRATION_ALREADY_COMPLETED: "This registration is already complete. Recover your private link with your email or mobile (Illuminate ID optional) for status, or contact E-Cell MET Team at met.iot.ecell@gmail.com if you no longer have it.",
+  RATE_LIMITED: "Too many registration attempts right now. Your details are still on this form — wait a minute and retry. If you already registered, log in with your email or mobile instead.",
+  REGISTRATION_UNAVAILABLE: "Registration is temporarily unavailable (high demand or server issue). Your details are still on this form — please retry in a minute. If you already registered, log in with your email or mobile instead.",
   REGISTRATION_DB_NOT_CONFIGURED: "Registration is unavailable: server database is not configured. Please contact the organizer (code DB-CONFIG).",
   REGISTRATION_AUTH_NOT_CONFIGURED: "Registration is unavailable: server sign-in secret is missing. Please contact the organizer (code AUTH-CONFIG).",
   REGISTRATION_INDEX_INIT_FAILED: "Registration is temporarily unavailable (database setup failed). Please retry in a minute; if it persists contact the organizer (code DB-INDEX).",
@@ -107,11 +107,11 @@ export function RegistrationWizard({ preview, e2ePreview = false }: { preview: b
     {preview && <p className="registration-preview" role="status">{e2ePreview ? "DEV PREVIEW — TEST REGISTRATION — NOT PAYABLE. Test data is stored privately for local workflow review only." : "DEV PREVIEW — NOT PAYABLE. No participant data, payment instruction, or proof is sent to the server."}</p>}
     <ol className="registration-progress" aria-label="Registration progress">{steps.map((label, index) => <li key={label} className={index === step ? "is-current" : index < step ? "is-complete" : ""} aria-current={index === step ? "step" : undefined}><span>{index < step ? <Check aria-hidden /> : `0${index + 1}`}</span><strong>{label}</strong></li>)}</ol>
     <p className="registration-live-region" aria-live="polite">{errors.form || errors.consent || ""}</p>
-    {formCode && DUPLICATE_CODES.has(formCode) && step === 1 && <p className="registration-field__help" role="status">Already have an Illuminate ID? <Link className="underline" href="/login">Log in to open your registration</Link> on this device.</p>}
+    {formCode && DUPLICATE_CODES.has(formCode) && step === 1 && <p className="registration-login-hint" role="status">Already registered? <Link href="/login">Log in with email or mobile to open your registration</Link> on this device.</p>}
     {step === 0 && <Details draft={draft} errors={errors} setField={setField} onSubmit={review} heading={heading} />}
     {step === 1 && <Review draft={draft} consent={consent} errors={errors} setConsent={setConsent} onBack={() => setStep(0)} onEdit={() => setStep(0)} onContinue={() => void create()} creating={creating} heading={heading} />}
     {step === 2 && <DevPaymentPreview onBack={() => setStep(1)} heading={heading} />}
-    <p className="mt-6 text-center text-sm text-text-secondary">Already registered? <Link className="underline" href="/login">Log in with your Illuminate ID</Link></p>
+    <p className="registration-login-hint registration-login-hint--center">Already registered? <Link href="/login">Log in with email or mobile</Link></p>
   </div>;
 }
 

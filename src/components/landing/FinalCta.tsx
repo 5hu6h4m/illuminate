@@ -22,6 +22,7 @@ export function FinalCta({ cta }: FinalCtaProps) {
             <h2 id="final-cta-title">{content.title}</h2>
             <p>{content.description}</p>
             <Link href={cta.href} className="landing-button"><span>{cta.label}</span><ArrowUpRight aria-hidden /></Link>
+            <p className="landing-final__login-wrap"><Link href="/login" className="landing-final__login">Already registered? Log in</Link></p>
             <ul className="landing-final__assurances" aria-label="Registration reassurance">
               {content.assurances.map((assurance) => <li key={assurance}>{assurance}</li>)}
             </ul>

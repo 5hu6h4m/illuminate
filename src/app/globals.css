@@ -1291,6 +1291,16 @@ html {
 }
 .landing-mobile-nav a{min-height:2.75rem; display:flex; align-items:center}
 .landing-mobile-cta{justify-content:center; border:1px solid rgba(139,92,246,.65); border-radius:999px; background:rgba(139,92,246,.12); color:#fafafa !important; font-weight:700; padding-inline:1.1rem}
+/* NAV CHROME — secondary Login: ghost/outline sibling to the primary CTA. Tokens + 0.25rem spacing scale only. */
+.landing-header__login{min-height:2.75rem; display:inline-flex; align-items:center; padding:0 1rem; border:1px solid rgba(250,250,250,.16); border-radius:999px; color:var(--color-text-secondary); font-size:.78rem; font-weight:600; text-decoration:none; white-space:nowrap; transition:color .2s var(--ease-out),border-color .2s var(--ease-out)}
+.landing-header__login:hover{color:#fafafa; border-color:rgba(250,250,250,.32)}
+.landing-mobile-login{min-height:2.75rem; display:flex; align-items:center; justify-content:center; border:1px solid rgba(250,250,250,.16); border-radius:999px; padding-inline:1.1rem; font-weight:600; color:var(--color-text-secondary) !important; text-decoration:none}
+.landing-mobile-login:hover{color:#fafafa !important; border-color:rgba(250,250,250,.32)}
+.registration-login-hint{margin:1rem 0 0; padding:.75rem 1rem; border:1px solid rgba(250,250,250,.16); border-radius:.75rem; background:rgba(250,250,250,.04); color:var(--color-text-secondary); font-size:.85rem; line-height:1.55}
+.registration-login-hint a{color:#fafafa; font-weight:700; text-decoration:underline; text-underline-offset:.24em}
+.registration-login-hint--center{margin-top:1.5rem; text-align:center}
+@media (max-width:1024px){.landing-header__login{display:none}}
+@media (max-width:23.75rem){.landing-header__inner{gap:.5rem; padding:0 .75rem}.landing-header__cta{padding-inline:.75rem}}
 
 .problem-business { border-top:1px solid rgba(250,250,250,.12); background:radial-gradient(42rem 30rem at 15% 35%,rgba(139,92,246,.12),transparent 70%); }
 .problem-business h2,.learning-map h2 { max-width:44rem; margin:.8rem 0 0; font:400 clamp(2rem,4.5vw,3.75rem)/1.08 var(--font-manrope),sans-serif; letter-spacing:-.035em; text-wrap:balance; }
@@ -1490,4 +1500,17 @@ html {
   .thinking-model{grid-template-columns:1fr}
   .why-stats{grid-template-columns:1fr}
   .event-object__facts dd{overflow-wrap:break-word}
+}
+
+/* Login hints (hero + final CTA) — reuse existing palette, no new colors. */
+.cinematic-hero__login { margin:1rem 0 0; max-width:100%; color:#a7a6a6; font-size:.86rem; line-height:1.6; overflow-wrap:anywhere; text-wrap:pretty; }
+.cinematic-hero__login .cinematic-hero__link { text-decoration:underline; text-underline-offset:4px; text-decoration-color:rgba(250,250,250,.45); }
+.landing-final__login-wrap { margin:1rem auto 0; max-width:100%; }
+.landing-final__login { display:inline-flex; align-items:center; justify-content:center; min-height:2.75rem; padding-inline:.25rem; max-width:100%; color:#fff; font-size:.86rem; font-weight:500; overflow-wrap:anywhere; text-align:center; text-decoration:underline; text-underline-offset:4px; text-decoration-color:rgba(250,250,250,.45); }
+.landing-final__login:hover { text-decoration-color:#fff; }
+@media (max-width:767px) {
+  .cinematic-hero__login .cinematic-hero__link { display:inline-flex; min-height:2.75rem; align-items:center; margin-inline:-.25rem; padding-inline:.25rem; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .cinematic-hero__login, .landing-final__login-wrap { animation:none; transition:none; }
 }

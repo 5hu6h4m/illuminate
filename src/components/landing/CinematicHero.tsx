@@ -113,6 +113,7 @@ export function CinematicHero({ registrationAvailable }: { registrationAvailable
               See what you&apos;ll learn <ArrowDownRight aria-hidden />
             </a>
           </div>
+          <p className="cinematic-hero__login">Already registered? <Link href="/login" className="cinematic-hero__link">Log in with email or mobile</Link></p>
           <dl className="cinematic-hero__facts" aria-label="Key event facts">
             {facts.map((fact) => (
               <div key={fact.label}>

@@ -3,6 +3,13 @@ import "server-only";
 import { z } from "zod";
 import { RegistrationDetailsSchema } from "@/lib/registration-details";
 import type { PaymentSnapshot, PaymentStatus } from "@/lib/payment";
+import {
+  ILLUMINATE_ID_PATTERN_CI,
+  NORMALIZED_PHONE_PATTERN,
+  normalizeIlluminateId,
+  normalizeLoginPhone,
+} from "@/lib/login-identifier";
+export { isIlluminateId, isLoginPhone, normalizeIlluminateId, normalizeLoginPhone } from "@/lib/login-identifier";
 
 export const PendingRegistrationRequestSchema = z.object({
   details: RegistrationDetailsSchema,
@@ -15,13 +22,64 @@ export const AdminDeleteSchema = z.object({ confirmPublicId: z.string().regex(/^
 
 const illuminateIdField = z.string().trim().toUpperCase().regex(/^ILL26-[A-Z0-9]{6}$/, "Enter your Illuminate ID (e.g. ILL26-ABCDEF).");
 const recoveryEmailField = z.string().trim().toLowerCase().pipe(z.email("Enter the email you registered with.")).optional();
-const recoveryPhoneField = z.string().trim().transform((value) => value.replace(/\D/g, "").replace(/^91(?=\d{10}$)/, "")).pipe(z.string().regex(/^[6-9]\d{9}$/, "Enter the mobile number you registered with.")).optional();
+const recoveryPhoneField = z.string().trim().transform(normalizeLoginPhone).pipe(z.string().regex(/^[6-9]\d{9}$/, "Enter the mobile number you registered with.")).optional();
 
 /**
- * Participant login: Illuminate ID (publicId) plus the contact detail used
- * at registration. Both must match the same record before the private
- * status link is re-issued, so one field alone never discloses another
- * participant's link.
+ * Participant login with either registered email OR phone alone.
+ * Illuminate ID (`illuminateId`) is optional second factor: when present it
+ * must match the same record, otherwise contact alone suffices. ID-alone
+ * never succeeds — a contact is always required.
+ */
+export const ParticipantLoginRequestSchema = z.object({
+  identifier: z.string().trim().min(3, "Enter your registered email, mobile number, or Illuminate ID.").max(254, "That entry looks too long."),
+  illuminateId: illuminateIdField.optional(),
+}).strict();
+
+export type ParticipantLoginRequest = z.infer<typeof ParticipantLoginRequestSchema>;
+
+export type LoginIdentifierKind = "email" | "phone" | "publicId" | "invalid";
+
+export type ParsedLoginIdentifier =
+  | { kind: "email"; email: string }
+  | { kind: "phone"; phone: string }
+  | { kind: "publicId"; publicId: string }
+  | { kind: "invalid" };
+
+/**
+ * Classify a raw login identifier as email, phone, or Illuminate ID.
+ * - email: contains `@`, validated with zod email after trim + lowercase.
+ * - publicId: matches ILL26-XXXXXX (case-insensitive), normalized to upper.
+ * - else phone: strip non-digits, strip leading 91 for 12-digit, must match
+ *   Indian mobile pattern (shared `normalizeLoginPhone` — same wall as
+ *   registration, so login never rejects a number registration accepted).
+ */
+export function parseLoginIdentifier(value: unknown): ParsedLoginIdentifier {
+  if (typeof value !== "string") return { kind: "invalid" };
+  const trimmed = value.trim();
+  if (trimmed.length < 3) return { kind: "invalid" };
+  if (trimmed.includes("@")) {
+    const normalizedEmail = trimmed.toLowerCase();
+    const emailCheck = z.email().safeParse(normalizedEmail);
+    if (!emailCheck.success) return { kind: "invalid" };
+    return { kind: "email", email: normalizedEmail };
+  }
+  if (ILLUMINATE_ID_PATTERN_CI.test(trimmed)) {
+    return { kind: "publicId", publicId: normalizeIlluminateId(trimmed) };
+  }
+  const digits = normalizeLoginPhone(trimmed);
+  if (NORMALIZED_PHONE_PATTERN.test(digits)) return { kind: "phone", phone: digits };
+  return { kind: "invalid" };
+}
+
+/**
+ * @deprecated Use {@link ParticipantLoginRequestSchema} + {@link parseLoginIdentifier}.
+ * Kept for backward compat: accepts legacy `{ publicId, email?, phone? }`
+ * and callers convert it to login logic (contact as identifier, publicId as
+ * optional `illuminateId`). Do not use for new code.
+ *
+ * Legacy rule: Illuminate ID plus the contact detail used at registration.
+ * Both must match the same record before the private status link is
+ * re-issued, so one field alone never discloses another participant's link.
  */
 export const ParticipantRecoveryRequestSchema = z.object({
   publicId: illuminateIdField,
