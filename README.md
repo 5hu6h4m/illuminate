@@ -9,9 +9,9 @@ Resend sends two transactional notifications only for real registrations:
 - **Payment submitted** after proof and transaction reference are durably persisted as `submitted_for_verification`. It says verification is pending; it never claims money or seat confirmation.
 - **Registration confirmed** after an authenticated admin durably transitions a real registration to `verified`.
 
-Email is a post-transaction side effect. Provider failure is recorded safely and never rolls back payment proof submission or verification. Development TEST records use dry-run suppression and never contact Resend.
+Email is a post-transaction side effect.failure is recorded safely and never rolls back payment proof submission or verification. Development TEST records use dry-run suppression and never contact Resend.
 
-Required server-only production configuration: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_REPLY_TO_EMAIL`, and `APP_BASE_URL`. Production delivery requires an organizer-controlled Resend-verified sending domain and HTTPS app URL.
+Required server-only production configuration: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_REPLY_TO_EMAIL`, and `APP_BASE_URL`. Production delivery requires an organizer-controlled Resend-verified sending domain and HTTPS app URL
 
 ## Commands
 
