@@ -1,5 +1,6 @@
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { apiError, sensitiveJson } from "@/lib/http";
+import { ECELL_MEMBER_AMOUNT, ECELL_STANDARD_AMOUNT } from "@/lib/ecell-pricing";
 import { getRegistrationsCollection, isDbConfigured } from "@/lib/mongodb";
 import type { PaymentStatus } from "@/lib/payment";
 import { isDevE2EPreviewEnabled } from "@/lib/payment";
@@ -30,7 +31,10 @@ export async function GET(request: Request) {
     const [rows, total, metrics, testRecords, realTotal] = await Promise.all([
       collection.find(filter, { projection: { participantAccessTokenHash: 0, idempotencyKeyHash: 0, audit: 0 } }).sort({ "payment.submittedAt": 1, createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray(),
       collection.countDocuments(filter),
-      collection.aggregate([{ $match: realRegistrationFilter }, { $group: { _id: "$payment.status", count: { $sum: 1 }, revenue: { $sum: { $cond: [{ $eq: ["$payment.status", "verified"] }, "$payment.snapshot.expectedAmount", 0] } } } }]).toArray(),
+      // Verified revenue uses the admin display amount: an E-cell flagged
+      // standard snapshot counts as the member amount. Snapshot itself stays
+      // immutable. Amounts come from the shared ecell-pricing constants.
+      collection.aggregate([{ $match: realRegistrationFilter }, { $group: { _id: "$payment.status", count: { $sum: 1 }, revenue: { $sum: { $cond: [{ $eq: ["$payment.status", "verified"] }, { $cond: [{ $and: [{ $eq: ["$ecellMember", true] }, { $eq: ["$payment.snapshot.expectedAmount", ECELL_STANDARD_AMOUNT] }] }, ECELL_MEMBER_AMOUNT, { $ifNull: ["$payment.snapshot.expectedAmount", 0] }] }, 0] } } } }]).toArray(),
       developmentE2EEnabled ? collection.countDocuments(developmentTestRegistrationFilter) : Promise.resolve(0),
       collection.countDocuments(realRegistrationFilter),
     ]);

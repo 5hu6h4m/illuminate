@@ -1,11 +1,11 @@
 import { ObjectId } from "mongodb";
 import { isAdminAuthenticated, verifyAdminPassword } from "@/lib/admin-auth";
-import { AdminDeleteSchema, AdminRejectSchema, AdminVerifySchema } from "@/lib/registration-v2";
+import { AdminDeleteSchema, AdminEcellSchema, AdminRejectSchema, AdminVerifySchema } from "@/lib/registration-v2";
 import { apiError, clientIp, isSameOrigin, sensitiveJson } from "@/lib/http";
 import { getDb, getPaymentProofBucket, getRegistrationsCollection, isDbConfigured } from "@/lib/mongodb";
 import { isDevE2EPreviewEnabled } from "@/lib/payment";
-import { enforceAdminDeleteRateLimit } from "@/lib/rate-limit";
-import { PaymentFlowError, rejectPaymentForReview, verifyPaymentForReview } from "@/lib/payment-flow-service";
+import { enforceAdminDeleteRateLimit, enforceAdminEcellRateLimit } from "@/lib/rate-limit";
+import { PaymentFlowError, rejectPaymentForReview, setEcellMemberFlag, verifyPaymentForReview } from "@/lib/payment-flow-service";
 
 export const runtime = "nodejs";
 export async function POST(request: Request, { params }: { params: Promise<{ publicId: string }> }) {
@@ -32,6 +32,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ pub
       const result = await rejectPaymentForReview({ publicId, publicReason: parsed.data.publicReason, privateNote: parsed.data.privateNote });
       if (!result) { console.warn("[admin-review] rejection transition conflict", publicId); return apiError(409, "INVALID_STATE_TRANSITION", "This registration changed since you opened it. Refresh the record."); }
       return sensitiveJson({ publicId: result.publicId, paymentStatus: result.payment.status, isTest: result.isTest });
+    }
+    if (body?.action === "ecell") {
+      const parsed = AdminEcellSchema.safeParse({ publicId, ecellMember: body?.ecellMember });
+      if (!parsed.success) return apiError(422, "INVALID_REQUEST", "Invalid E-cell member flag.");
+      try {
+        const limit = await enforceAdminEcellRateLimit({ ip: clientIp(request), publicId: parsed.data.publicId });
+        if (!limit.ok) return apiError(429, "RATE_LIMITED", "Too many E-cell updates. Please try again shortly.", { retryAfterSeconds: limit.retryAfterSeconds });
+      } catch {
+        return apiError(503, "SERVER_ERROR", "Could not update the E-cell flag.");
+      }
+      const result = await setEcellMemberFlag({ publicId: parsed.data.publicId, ecellMember: parsed.data.ecellMember });
+      if (!result) return apiError(404, "NOT_FOUND", "Not found.");
+      try {
+        await (await getDb()).collection("admin_audit").insertOne({ type: "admin_ecell_flag_changed", actor: "admin", at: new Date(), metadata: { publicId: result.publicId, ecellMember: parsed.data.ecellMember, paymentStatus: result.payment.status, wasTest: result.isTest, expectedAmount: result.payment.snapshot?.expectedAmount ?? null } });
+      } catch (auditError) {
+        console.warn("[admin-review] ecell audit insert failed", publicId, auditError instanceof Error ? auditError.message : auditError);
+      }
+      return sensitiveJson({ publicId: result.publicId, ecellMember: result.ecellMember === true, paymentStatus: result.payment.status, isTest: result.isTest });
     }
     return apiError(422, "INVALID_REQUEST", "Invalid review action.");
   } catch (error) {
@@ -90,7 +108,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
     }
     const wasVerified = paymentStatus === "verified";
     try {
-      await (await getDb()).collection("admin_audit").insertOne({ type: wasVerified ? "admin_registration_deleted_verified" : "admin_registration_deleted", actor: "admin", at: new Date(), metadata: { publicId, wasTest, paymentStatus, expectedAmount: existing.payment.snapshot?.expectedAmount ?? null, transactionReference: existing.payment.transactionReference ?? null, verifiedAt: existing.payment.verifiedAt ?? null, proofIds, reason: parsed.data.reason } });
+      await (await getDb()).collection("admin_audit").insertOne({ type: wasVerified ? "admin_registration_deleted_verified" : "admin_registration_deleted", actor: "admin", at: new Date(), metadata: { publicId, wasTest, paymentStatus, expectedAmount: existing.payment.snapshot?.expectedAmount ?? null, ecellMember: existing.ecellMember === true, transactionReference: existing.payment.transactionReference ?? null, verifiedAt: existing.payment.verifiedAt ?? null, proofIds, reason: parsed.data.reason } });
     } catch (auditError) {
       console.warn("[admin-review] deletion audit insert failed", publicId, auditError instanceof Error ? auditError.message : auditError);
     }

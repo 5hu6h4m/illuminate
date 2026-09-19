@@ -23,6 +23,10 @@ export const ADMIN_DELETE_IP_LIMIT = 120;
 export const ADMIN_DELETE_IP_WINDOW_MS = 15 * 60_000;
 export const ADMIN_DELETE_IDENTITY_LIMIT = 5;
 export const ADMIN_DELETE_IDENTITY_WINDOW_MS = 15 * 60_000;
+export const ADMIN_ECELL_IP_LIMIT = 120;
+export const ADMIN_ECELL_IP_WINDOW_MS = 15 * 60_000;
+export const ADMIN_ECELL_IDENTITY_LIMIT = 10;
+export const ADMIN_ECELL_IDENTITY_WINDOW_MS = 15 * 60_000;
 
 export async function enforceRateLimit(scope: string, identity: string, maximum: number, windowMs: number): Promise<boolean> {
   await ensurePaymentIndexes();
@@ -87,5 +91,15 @@ export async function enforceAdminDeleteRateLimit(input: { ip: string; publicId:
   }
   const idOk = await enforceRateLimit("admin-delete-per-id", `publicId:${input.publicId.toUpperCase()}`, ADMIN_DELETE_IDENTITY_LIMIT, ADMIN_DELETE_IDENTITY_WINDOW_MS);
   if (!idOk) return { ok: false, retryAfterSeconds: Math.ceil(ADMIN_DELETE_IDENTITY_WINDOW_MS / 1000) };
+  return { ok: true, retryAfterSeconds: 0 };
+}
+
+export async function enforceAdminEcellRateLimit(input: { ip: string; publicId: string }): Promise<{ ok: boolean; retryAfterSeconds: number }> {
+  if (input.ip && input.ip !== "unknown") {
+    const ipOk = await enforceRateLimit("admin-ecell-ip", input.ip, ADMIN_ECELL_IP_LIMIT, ADMIN_ECELL_IP_WINDOW_MS);
+    if (!ipOk) return { ok: false, retryAfterSeconds: Math.ceil(ADMIN_ECELL_IP_WINDOW_MS / 1000) };
+  }
+  const idOk = await enforceRateLimit("admin-ecell-per-id", `publicId:${input.publicId.toUpperCase()}`, ADMIN_ECELL_IDENTITY_LIMIT, ADMIN_ECELL_IDENTITY_WINDOW_MS);
+  if (!idOk) return { ok: false, retryAfterSeconds: Math.ceil(ADMIN_ECELL_IDENTITY_WINDOW_MS / 1000) };
   return { ok: true, retryAfterSeconds: 0 };
 }

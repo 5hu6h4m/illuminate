@@ -21,6 +21,7 @@ export function useDashboard() {
   const [verifyPending, setVerifyPending] = useState(false);
   const [rejectPending, setRejectPending] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
+  const [ecellPending, setEcellPending] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / ADMIN_PAGE_SIZE));
   // Derive the clamped page during render so filter changes that shrink the
@@ -180,6 +181,30 @@ export function useDashboard() {
     [fetchDashboard],
   );
 
+  const toggleEcell = useCallback(
+    async (row: Row, next: boolean): Promise<Row> => {
+      setEcellPending(true);
+      try {
+        const response = await fetch(`/api/admin/registrations/${row.publicId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "ecell", ecellMember: next }),
+        });
+        const json = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(json?.error?.message || "E-cell flag could not be saved. Refresh and try again.");
+        const updatedFlag = (json?.data as { ecellMember?: boolean } | undefined)?.ecellMember === true;
+        const updated: Row = { ...row, ecellMember: updatedFlag };
+        setData(await fetchDashboard());
+        setNotice(updatedFlag ? `Marked ${row.publicId} as E-cell member.` : `Removed E-cell flag from ${row.publicId}.`);
+        setError("");
+        return updated;
+      } finally {
+        setEcellPending(false);
+      }
+    },
+    [fetchDashboard],
+  );
+
   return {
     authed,
     data,
@@ -196,6 +221,7 @@ export function useDashboard() {
     verifyPending,
     rejectPending,
     deletePending,
+    ecellPending,
     setQuery,
     setStatus,
     setScope,
@@ -207,5 +233,6 @@ export function useDashboard() {
     verify,
     reject,
     remove,
+    toggleEcell,
   };
 }

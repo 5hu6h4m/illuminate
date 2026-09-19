@@ -19,6 +19,7 @@ export const TransactionReferenceSchema = z.string().trim().min(8, "Enter a vali
 export const AdminVerifySchema = z.object({ publicId: z.string().regex(/^ILL26-[A-Z0-9]{6}$/), confirmedInRecipientAccount: z.literal(true) }).strict();
 export const AdminRejectSchema = z.object({ publicId: z.string().regex(/^ILL26-[A-Z0-9]{6}$/), publicReason: z.string().trim().min(3).max(300), privateNote: z.string().trim().max(1000).optional() }).strict();
 export const AdminDeleteSchema = z.object({ confirmPublicId: z.string().regex(/^ILL26-[A-Z0-9]{6}$/), reason: z.string().trim().min(10).max(500), password: z.string().min(1).max(1024) }).strict();
+export const AdminEcellSchema = z.object({ publicId: z.string().regex(/^ILL26-[A-Z0-9]{6}$/), ecellMember: z.boolean() }).strict();
 
 const illuminateIdField = z.string().trim().toUpperCase().regex(/^ILL26-[A-Z0-9]{6}$/, "Enter your Illuminate ID (e.g. ILL26-ABCDEF).");
 const recoveryEmailField = z.string().trim().toLowerCase().pipe(z.email("Enter the email you registered with.")).optional();
@@ -89,7 +90,7 @@ export const ParticipantRecoveryRequestSchema = z.object({
 
 export type ParticipantRecoveryRequest = z.infer<typeof ParticipantRecoveryRequestSchema>;
 
-export type AuditEventType = "registration_created" | "payment_proof_submitted" | "payment_proof_resubmitted" | "payment_verified" | "payment_rejected";
+export type AuditEventType = "registration_created" | "payment_proof_submitted" | "payment_proof_resubmitted" | "payment_verified" | "payment_rejected" | "ecell_flag_changed";
 export type AuditEvent = { type: AuditEventType; actor: "participant" | "admin" | "system"; at: Date; metadata?: Record<string, string | number | boolean> };
 
 /**
@@ -97,7 +98,7 @@ export type AuditEvent = { type: AuditEventType; actor: "participant" | "admin" 
  * into `RegistrationV2["audit"]` — that record is hard-deleted with the
  * registration, while the `admin_audit` snapshot survives it).
  */
-export type AdminAuditEventType = "admin_login_success" | "admin_login_failed" | "admin_registration_deleted" | "admin_registration_deleted_verified";
+export type AdminAuditEventType = "admin_login_success" | "admin_login_failed" | "admin_registration_deleted" | "admin_registration_deleted_verified" | "admin_ecell_flag_changed";
 export type AdminAuditEvent = { type: AdminAuditEventType; actor: "admin"; at: Date; metadata?: Record<string, string | number | boolean | string[] | null> };
 export type TransactionalEmailStatus = "pending" | "sending" | "sent" | "failed" | "suppressed";
 export type TransactionalEmailNotification = { status: TransactionalEmailStatus; eventKey: string; lastAttemptAt?: Date; sentAt?: Date; resendId?: string; errorCode?: string };
@@ -110,6 +111,13 @@ export type RegistrationV2 = {
   isTest: boolean;
   participantAccessTokenHash: string;
   participant: { fullName: string; email: string; normalizedEmail: string; phone: string; normalizedPhone: string; college?: string; branch?: string; year?: string };
+  /**
+   * Admin-only E-cell member flag. Display-only: when true and the immutable
+   * `payment.snapshot.expectedAmount` is 599, the admin panel shows 699.
+   * Never written by participants; never mutates the payment snapshot.
+   * Absent on older documents — treat as false.
+   */
+  ecellMember?: boolean;
   payment: {
     snapshot: PaymentSnapshot;
     status: PaymentStatus;

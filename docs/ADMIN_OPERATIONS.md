@@ -22,6 +22,10 @@ Open `/admin`, sign in with the team password, and sign out when finished. The p
 
 Do not verify based on a screenshot alone. The application has no bank or UPI settlement integration. Early Bird snapshots issued through 23 September 2026 expect ₹599; Regular snapshots issued from 24 September through 5 October 2026 expect ₹699. Never recalculate an older registration from the price currently displayed on the landing page.
 
+## E-cell member flag (display-only)
+
+Registration fee for E-cell members is ₹699 instead of ₹599 (collected via the shared QR). In the record review view, use **Mark as E-cell member** / **Remove E-cell flag**. The flag is reversible, admin-only, and never mutates `payment.snapshot` — a flagged 599 snapshot only *displays* as ₹699 in the queue table, review modal, verified revenue, and internal CSV (`E-cell Member` YES/NO column). Participant QR, amount, and emails are untouched. Not available for TEST records. Every change is recorded in `admin_audit` as `admin_ecell_flag_changed`.
+
 ## Reject and request resubmission
 
 Provide a short participant-facing reason, for example “Screenshot unclear — please upload a clearer proof.” A private note is internal only and never appears on the participant status page. The participant can submit a replacement proof/reference through their existing private status link.

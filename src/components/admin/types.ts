@@ -3,6 +3,7 @@ export type Status = "payment_pending" | "submitted_for_verification" | "verifie
 export type Row = {
   publicId: string;
   isTest: boolean;
+  ecellMember?: boolean;
   participant: { fullName: string; email: string; phone: string };
   payment: {
     snapshot: { expectedAmount: number | null };

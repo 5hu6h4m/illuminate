@@ -164,3 +164,34 @@ export async function verifyPaymentForReview(input: { publicId: string; simulate
   if (result) await dispatchTransactionalEmail("paymentVerified", result).catch(() => undefined);
   return result;
 }
+
+/**
+ * Admin-only E-cell member flag toggle. Display-only: never mutates
+ * `payment.snapshot`. Only real (non-test) registrations may be flagged.
+ * Idempotent — returns the current record unchanged when the flag already
+ * matches. No emails are sent on this path.
+ */
+export async function setEcellMemberFlag(input: { publicId: string; ecellMember: boolean }): Promise<RegistrationV2 | null> {
+  const collection = await getRegistrationsCollection();
+  const existing = await collection.findOne(
+    { ...realRegistrationFilter, publicId: input.publicId },
+    { projection: { ecellMember: 1, payment: 1, isTest: 1, publicId: 1 } },
+  );
+  if (!existing) return null;
+  const before = existing.ecellMember === true;
+  if (before === input.ecellMember) {
+    return (await collection.findOne(
+      { ...realRegistrationFilter, publicId: input.publicId },
+      { projection: { participantAccessTokenHash: 0, idempotencyKeyHash: 0 } },
+    )) as RegistrationV2 | null;
+  }
+  const now = new Date();
+  return collection.findOneAndUpdate(
+    { ...realRegistrationFilter, publicId: input.publicId },
+    {
+      $set: { ecellMember: input.ecellMember, updatedAt: now },
+      $push: { audit: { type: "ecell_flag_changed", actor: "admin", at: now, metadata: { before, after: input.ecellMember } } },
+    },
+    { returnDocument: "after", projection: { participantAccessTokenHash: 0, idempotencyKeyHash: 0 } },
+  );
+}

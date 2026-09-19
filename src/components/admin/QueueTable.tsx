@@ -3,6 +3,7 @@
 import type { Row } from "./types";
 import { Badge } from "./Badge";
 import { statusText } from "./types";
+import { getDisplayAmount } from "@/lib/ecell-pricing";
 
 type QueueTableProps = {
   rows: Row[];
@@ -69,7 +70,12 @@ export function QueueTable({ rows, total, page, limit, refreshing, onPageChange,
                     {row.participant.email} · {row.participant.phone}
                   </p>
                 </td>
-                <td className="p-4">{row.isTest ? "₹XXX · TEST" : `₹${row.payment.snapshot.expectedAmount}`}</td>
+                <td className="p-4">{(() => {
+                  if (row.isTest) return "₹XXX · TEST";
+                  const display = getDisplayAmount(row.payment.snapshot.expectedAmount, row.ecellMember);
+                  if (display === null) return "—";
+                  return `₹${display}${row.ecellMember === true ? " · E-cell" : ""}`;
+                })()}</td>
                 <td className="p-4 font-mono">{row.payment.transactionReference || "—"}</td>
                 <td className="p-4">
                   {row.payment.submittedAt ? new Date(row.payment.submittedAt).toLocaleString("en-IN") : "—"}

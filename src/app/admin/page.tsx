@@ -31,6 +31,7 @@ export default function AdminPage() {
     verifyPending,
     rejectPending,
     deletePending,
+    ecellPending,
     setQuery,
     setStatus,
     setScope,
@@ -42,6 +43,7 @@ export default function AdminPage() {
     verify,
     reject,
     remove,
+    toggleEcell,
   } = useDashboard();
   const [selected, setSelected] = useState<Row | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
@@ -79,6 +81,17 @@ export default function AdminPage() {
       setSelected(null);
     } catch (cause) {
       setModalError(cause instanceof Error ? cause.message : "Verification could not be saved. Refresh and try again.");
+    }
+  };
+
+  const handleToggleEcell = async (next: boolean) => {
+    if (!selected) return;
+    setModalError("");
+    try {
+      const updated = await toggleEcell(selected, next);
+      setSelected(updated);
+    } catch (cause) {
+      setModalError(cause instanceof Error ? cause.message : "E-cell flag could not be saved. Refresh and try again.");
     }
   };
 
@@ -169,10 +182,12 @@ export default function AdminPage() {
             row={selected}
             verifyPending={verifyPending}
             rejectPending={rejectPending}
+            ecellPending={ecellPending}
             error={modalError}
             onClose={closeReview}
             onVerify={handleVerify}
             onReject={handleReject}
+            onToggleEcell={handleToggleEcell}
             onRequestDelete={(row) => {
               setDeleteError("");
               setDeleteTarget(row);

@@ -5,15 +5,18 @@ import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Trash2, XCircle } from "lucide-react";
 import type { Row } from "./types";
 import { Badge } from "./Badge";
+import { getDisplayAmount, isEcellOverrideApplied } from "@/lib/ecell-pricing";
 
 type ReviewModalProps = {
   row: Row;
   verifyPending: boolean;
   rejectPending: boolean;
+  ecellPending: boolean;
   error: string;
   onClose: () => void;
   onVerify: (confirmed: boolean) => Promise<void>;
   onReject: (reason: string, privateNote: string) => Promise<void>;
+  onToggleEcell: (next: boolean) => Promise<void>;
   onRequestDelete: (row: Row) => void;
 };
 
@@ -21,10 +24,12 @@ export function ReviewModal({
   row,
   verifyPending,
   rejectPending,
+  ecellPending,
   error,
   onClose,
   onVerify,
   onReject,
+  onToggleEcell,
   onRequestDelete,
 }: ReviewModalProps) {
   const [confirmed, setConfirmed] = useState(false);
@@ -48,7 +53,11 @@ export function ReviewModal({
     };
   }, []);
 
-  const busy = verifyPending || rejectPending;
+  const busy = verifyPending || rejectPending || ecellPending;
+  const isEcell = row.ecellMember === true;
+  const snapshotAmount = row.payment.snapshot.expectedAmount;
+  const displayAmount = getDisplayAmount(snapshotAmount, row.ecellMember);
+  const overrideApplied = isEcellOverrideApplied(snapshotAmount, row.ecellMember);
 
   return (
     <div
@@ -81,13 +90,43 @@ export function ReviewModal({
           <dl className="mt-6 grid gap-3 sm:grid-cols-2">
             <div>
               <dt className="text-xs text-text-secondary">Expected</dt>
-              <dd>{row.isTest ? "₹XXX · simulated" : `₹${row.payment.snapshot.expectedAmount}`}</dd>
+              <dd aria-live="polite">
+                {row.isTest ? (
+                  "₹XXX · simulated"
+                ) : displayAmount === null ? (
+                  "—"
+                ) : overrideApplied ? (
+                  <>₹{snapshotAmount} → ₹{displayAmount} · E-cell</>
+                ) : (
+                  <>₹{displayAmount}{isEcell ? " · E-cell" : ""}</>
+                )}
+              </dd>
             </div>
             <div>
               <dt className="text-xs text-text-secondary">Transaction/reference</dt>
               <dd className="font-mono">{row.payment.transactionReference}</dd>
             </div>
           </dl>
+          <div className="mt-6 space-y-3 rounded-2xl border border-white/10 p-5">
+            <h3 className="text-sm font-semibold">E-cell member</h3>
+            <p className="text-sm text-text-secondary">
+              Registration fee for E-cell members is ₹699 instead of ₹599. Marking only changes admin-panel data
+              (table, revenue, internal CSV). Payment QR and participant view are untouched.
+            </p>
+            {row.isTest ? (
+              <p className="text-sm text-text-secondary">Not available for TEST records.</p>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                className="registration-back disabled:opacity-40"
+                aria-pressed={isEcell}
+                onClick={() => void onToggleEcell(!isEcell)}
+              >
+                {ecellPending ? "Saving…" : isEcell ? "Remove E-cell flag" : "Mark as E-cell member"}
+              </button>
+            )}
+          </div>
           {row.payment.currentProofId && (
             <img
               src={`/api/admin/proof/${row.payment.currentProofId}`}
