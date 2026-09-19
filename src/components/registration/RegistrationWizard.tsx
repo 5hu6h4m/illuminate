@@ -30,6 +30,7 @@ const registrationCreationMessages: Record<string, string> = {
   REGISTRATION_DB_CONNECTION_FAILED: "Registration is temporarily unavailable (cannot reach database). Please retry in a minute (code DB-CONN).",
   REGISTRATION_WRITE_FAILED: "Could not create your registration (code DB-WRITE). Please retry.",
   PAYMENT_NOT_AVAILABLE: "Payment registration is not available yet. Please try again later.",
+  PAYMENT_CAPACITY_FULL: "Illuminate registration capacity is currently full.",
 };
 const DUPLICATE_CODES = new Set([
   "REGISTRATION_ALREADY_STARTED",

@@ -65,7 +65,9 @@ async function sendTest(kind: "paymentSubmitted" | "paymentVerified") {
     return;
   }
 
-  console.log("Sending payload:", JSON.stringify(payload, null, 2));
+  // Never log the EmailJS private key (payload.accessToken).
+  const loggedPayload = { ...payload, accessToken: "[REDACTED]" };
+  console.log("Sending payload:", JSON.stringify(loggedPayload, null, 2));
   
   try {
     const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {

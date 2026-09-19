@@ -6,6 +6,7 @@ import { CheckCircle2, Trash2, XCircle } from "lucide-react";
 import type { Row } from "./types";
 import { Badge } from "./Badge";
 import { getDisplayAmount, isEcellOverrideApplied } from "@/lib/ecell-pricing";
+import { destinationShortLabel } from "./types";
 
 type ReviewModalProps = {
   row: Row;
@@ -89,6 +90,18 @@ export function ReviewModal({
           )}
           <dl className="mt-6 grid gap-3 sm:grid-cols-2">
             <div>
+              <dt className="text-xs text-text-secondary">Assigned Account</dt>
+              <dd className="font-semibold">{row.payment.destination?.destinationId ? destinationShortLabel(row.payment.destination.destinationId) : "Legacy (snapshot)"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-text-secondary">Payee</dt>
+              <dd>{row.payment.destination?.payeeName ?? row.payment.snapshot.payeeName ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-text-secondary">UPI</dt>
+              <dd className="break-all font-mono">{row.payment.destination?.upiId ?? row.payment.snapshot.upiId ?? "—"}</dd>
+            </div>
+            <div>
               <dt className="text-xs text-text-secondary">Expected</dt>
               <dd aria-live="polite">
                 {row.isTest ? (
@@ -106,6 +119,16 @@ export function ReviewModal({
               <dt className="text-xs text-text-secondary">Transaction/reference</dt>
               <dd className="font-mono">{row.payment.transactionReference}</dd>
             </div>
+            {row.payment.proofHistory?.length ? (
+              <div>
+                <dt className="text-xs text-text-secondary">Proof destination</dt>
+                <dd className="text-xs">
+                  {row.payment.proofHistory[row.payment.proofHistory.length - 1]?.destination
+                    ? `${destinationShortLabel(row.payment.proofHistory[row.payment.proofHistory.length - 1]?.destination?.destinationId)} · ${row.payment.proofHistory[row.payment.proofHistory.length - 1]?.destination?.upiId}`
+                    : "Legacy (no snapshot)"}
+                </dd>
+              </div>
+            ) : null}
           </dl>
           <div className="mt-6 space-y-3 rounded-2xl border border-white/10 p-5">
             <h3 className="text-sm font-semibold">E-cell member</h3>
@@ -127,6 +150,11 @@ export function ReviewModal({
               </button>
             )}
           </div>
+          {!row.isTest && row.payment.destination && (
+            <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-text-secondary">
+              Verify this payment was found in the assigned recipient account above — a screenshot alone is not sufficient.
+            </p>
+          )}
           {row.payment.currentProofId && (
             <img
               src={`/api/admin/proof/${row.payment.currentProofId}`}

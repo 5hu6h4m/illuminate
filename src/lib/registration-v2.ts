@@ -90,7 +90,7 @@ export const ParticipantRecoveryRequestSchema = z.object({
 
 export type ParticipantRecoveryRequest = z.infer<typeof ParticipantRecoveryRequestSchema>;
 
-export type AuditEventType = "registration_created" | "payment_proof_submitted" | "payment_proof_resubmitted" | "payment_verified" | "payment_rejected" | "ecell_flag_changed";
+export type AuditEventType = "registration_created" | "payment_proof_submitted" | "payment_proof_resubmitted" | "payment_verified" | "payment_rejected" | "ecell_flag_changed" | "payment_destination_assigned" | "payment_destination_reassigned";
 export type AuditEvent = { type: AuditEventType; actor: "participant" | "admin" | "system"; at: Date; metadata?: Record<string, string | number | boolean> };
 
 /**
@@ -98,10 +98,18 @@ export type AuditEvent = { type: AuditEventType; actor: "participant" | "admin" 
  * into `RegistrationV2["audit"]` — that record is hard-deleted with the
  * registration, while the `admin_audit` snapshot survives it).
  */
-export type AdminAuditEventType = "admin_login_success" | "admin_login_failed" | "admin_registration_deleted" | "admin_registration_deleted_verified" | "admin_ecell_flag_changed";
-export type AdminAuditEvent = { type: AdminAuditEventType; actor: "admin"; at: Date; metadata?: Record<string, string | number | boolean | string[] | null> };
+export type AdminAuditEventType = "admin_login_success" | "admin_login_failed" | "admin_registration_deleted" | "admin_registration_deleted_verified" | "admin_ecell_flag_changed" | "payment_destination_exhausted" | "payment_destination_activated" | "payment_destination_disabled" | "payment_capacity_full" | "admin_payment_destination_reassigned";
+export type AdminAuditEvent = { type: AdminAuditEventType; actor: "admin" | "system"; at: Date; metadata?: Record<string, string | number | boolean | string[] | null> };
 export type TransactionalEmailStatus = "pending" | "sending" | "sent" | "failed" | "suppressed";
 export type TransactionalEmailNotification = { status: TransactionalEmailStatus; eventKey: string; lastAttemptAt?: Date; sentAt?: Date; resendId?: string; errorCode?: string };
+
+export type PaymentDestinationSnapshot = {
+  destinationId: string;
+  internalLabel: string;
+  payeeName: string;
+  upiId: string;
+  assignedAt: Date;
+};
 
 export type RegistrationV2 = {
   schemaVersion: 2;
@@ -120,10 +128,12 @@ export type RegistrationV2 = {
   ecellMember?: boolean;
   payment: {
     snapshot: PaymentSnapshot;
+    /** Authoritative assigned payment destination for NEW registrations. */
+    destination?: PaymentDestinationSnapshot;
     status: PaymentStatus;
     transactionReference?: string;
     currentProofId?: string;
-    proofHistory: Array<{ fileId: string; submittedAt: Date; transactionReference: string }>;
+    proofHistory: Array<{ fileId: string; submittedAt: Date; transactionReference: string; destination?: { destinationId: string; internalLabel: string; payeeName: string; upiId: string } }>;
     submittedAt?: Date;
     verifiedAt?: Date;
     rejectedAt?: Date;
@@ -155,6 +165,10 @@ export type PublicStatus = {
   isTest: boolean;
   submissionEmailStatus?: "sent" | "failed" | "suppressed" | "not_sent";
   verificationEmailStatus?: "sent" | "failed" | "suppressed" | "not_sent";
+  /** Assigned destination identity (never the globally active account). */
+  paymentDestination?: { destinationId: string; internalLabel: string; payeeName: string; upiId: string } | null;
+  /** True when this legacy Account A pending record needs admin reassignment. */
+  requiresReassignment?: boolean;
   paymentInstructions?: { payeeName: string; upiId: string; upiUri?: string };
 };
 

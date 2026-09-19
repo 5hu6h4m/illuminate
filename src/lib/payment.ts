@@ -31,6 +31,15 @@ export function canTransitionPayment(from: PaymentStatus, to: PaymentStatus): bo
   return PAYMENT_TRANSITIONS[from].includes(to);
 }
 
+/**
+ * LEGACY ONLY — Account A fallback for historical compatibility.
+ * NEVER use for new payment assignment. New registrations must receive
+ * their destination exclusively from the `payment_destinations` collection
+ * (B → C → D → E). See `src/lib/payment-destinations.ts`.
+ */
+export const LEGACY_ACCOUNT_A_PAYEE = "Yash Patil";
+export const LEGACY_ACCOUNT_A_UPI = "yashpatil76317@okicici";
+
 export function getConfirmedPaymentSnapshot(at: Date = new Date()): PaymentSnapshot | null {
   if (!isPaymentRegistrationAvailable()) return null;
   const payeeName = (event.payment.recipient.value as string | null)?.trim();
@@ -71,6 +80,23 @@ export function buildUpiUri(snapshot: PaymentSnapshot, publicId: string): string
     pn: snapshot.payeeName,
     am: snapshot.expectedAmount.toFixed(2),
     cu: snapshot.currency,
+    tn: publicId,
+  });
+  return `upi://pay?${parameters.toString()}`;
+}
+
+/**
+ * Destination-bound UPI URI. The price comes from the immutable
+ * payment.snapshot.expectedAmount; payee comes from the assigned
+ * payment.destination. Never mix with the globally active account.
+ */
+export function buildUpiUriForDestination(destination: { payeeName: string; upiId: string }, expectedAmount: number | null, publicId: string): string {
+  if (expectedAmount === null || !Number.isFinite(expectedAmount)) throw new Error("Preview payment snapshots cannot create UPI URIs.");
+  const parameters = new URLSearchParams({
+    pa: destination.upiId,
+    pn: destination.payeeName,
+    am: expectedAmount.toFixed(2),
+    cu: "INR",
     tn: publicId,
   });
   return `upi://pay?${parameters.toString()}`;

@@ -2,6 +2,7 @@ import "server-only";
 
 import { GridFSBucket, MongoClient, type Collection, type Db } from "mongodb";
 import type { RegistrationV2 } from "@/lib/registration-v2";
+import type { PaymentDestination } from "@/lib/payment-destinations";
 
 const uri = process.env.MONGODB_URI ?? "";
 const dbName = process.env.MONGODB_DB_NAME ?? process.env.MONGODB_DB ?? "illuminate";
@@ -46,8 +47,40 @@ function getClientPromise(): Promise<MongoClient> {
 
 export function isDbConfigured(): boolean { return Boolean(uri); }
 export async function getDb(): Promise<Db> { return (await getClientPromise()).db(dbName); }
+export async function getMongoClient(): Promise<MongoClient> { return getClientPromise(); }
+
+/**
+ * Script-only helper: gracefully close the cached MongoDB client so
+ * one-shot scripts (e.g. the destinations seed) let the Node event loop
+ * drain and exit cleanly. Never call from request handlers — server
+ * runtime relies on the shared client staying open.
+ */
+export async function closeMongoConnection(): Promise<void> {
+  const pending = clientPromise ?? global.__illuminateMongoClientPromise;
+  clientPromise = undefined;
+  global.__illuminateMongoClientPromise = undefined;
+  global.__illuminateIndexesPromise = undefined;
+  if (pending) {
+    try {
+      await (await pending).close();
+    } catch {
+      // Best-effort cleanup only; the script's work already committed.
+    }
+  }
+}
 export async function getRegistrationsCollection(): Promise<Collection<RegistrationV2>> { return (await getDb()).collection<RegistrationV2>("registrations"); }
+export async function getPaymentDestinationsCollection(): Promise<Collection<PaymentDestination>> { return (await getDb()).collection<PaymentDestination>("payment_destinations"); }
 export async function getPaymentProofBucket(): Promise<GridFSBucket> { return new GridFSBucket(await getDb(), { bucketName: "payment_proofs" }); }
+
+/** Idempotently creates payment_destinations indexes. */
+export async function ensurePaymentDestinationIndexes(): Promise<void> {
+  const destinations = await getPaymentDestinationsCollection();
+  await Promise.all([
+    destinations.createIndex({ destinationId: 1 }, { name: "dest_id_unique", unique: true }),
+    destinations.createIndex({ sequence: 1 }, { name: "dest_sequence", unique: true }),
+    destinations.createIndex({ status: 1, sequence: 1 }, { name: "dest_status_sequence" }),
+  ]);
+}
 
 /** Idempotently creates schema-v2 indexes. Legacy documents never participate in these constraints. */
 export async function ensurePaymentIndexes(): Promise<void> {
@@ -97,6 +130,7 @@ export async function ensurePaymentIndexes(): Promise<void> {
       registrations.createIndex({ "payment.status": 1, "payment.submittedAt": 1 }, { name: "v2_admin_queue", partialFilterExpression: current }),
       registrations.createIndex({ participantAccessTokenHash: 1 }, { name: "v2_access_token", unique: true, partialFilterExpression: current }),
       registrations.createIndex({ createdAt: -1 }, { name: "v2_created_at", partialFilterExpression: current }),
+      registrations.createIndex({ "payment.destination.destinationId": 1, "payment.status": 1 }, { name: "v2_destination_status", partialFilterExpression: current }),
       db.collection("rate_limits").createIndex({ expiresAt: 1 }, { name: "rate_limit_expiry", expireAfterSeconds: 0 }),
       db.collection("rate_limits").createIndex({ key: 1 }, { name: "rate_limit_key", unique: true }),
       db.collection("admin_audit").createIndex({ at: -1 }, { name: "admin_audit_at" }),

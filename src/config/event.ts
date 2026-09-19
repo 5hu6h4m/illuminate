@@ -44,6 +44,11 @@ export const event = {
     eSummit: { value: null, confirmation: "pending" },
   },
   payment: {
+    // LEGACY ONLY — Account A (Yash Patil / yashpatil76317@okicici) is
+    // permanently disabled and must NEVER be used for new payment
+    // assignment. New registrations receive B → C → D → E destinations
+    // exclusively from the `payment_destinations` collection.
+    // These fields remain only for historical snapshot compatibility.
     recipient: { value: "Yash Patil", confirmation: "confirmed" },
     upiId: { value: "yashpatil76317@okicici", confirmation: "confirmed" },
     refundPolicy: { value: "Registration fees are non-refundable once payment has been verified.", confirmation: "confirmed" },

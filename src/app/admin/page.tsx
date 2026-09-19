@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { Download, LogOut, X } from "lucide-react";
 import { AdminLogin } from "@/components/admin/AdminLogin";
+import { CapacityPanel } from "@/components/admin/CapacityPanel";
 import { DeleteVerifiedDialog } from "@/components/admin/DeleteVerifiedDialog";
 import type { DeleteConfirmInput } from "@/components/admin/DeleteVerifiedDialog";
 import { FilterBar } from "@/components/admin/FilterBar";
@@ -153,6 +154,7 @@ export default function AdminPage() {
           </p>
         )}
         <MetricsBar data={data} activeStatus={status} onSelectStatus={(next) => setStatus(next)} />
+        <CapacityPanel />
         <FilterBar
           query={query}
           onQueryChange={setQuery}

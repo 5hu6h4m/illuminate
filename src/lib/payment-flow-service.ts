@@ -2,7 +2,8 @@ import "server-only";
 
 import { ObjectId, type WithId } from "mongodb";
 import { TransactionReferenceSchema, type PublicStatus, type RegistrationV2 } from "@/lib/registration-v2";
-import { buildUpiUri, detectImageType, hashParticipantAccessToken, isDevE2EPreviewEnabled, isValidParticipantAccessToken, MAX_PAYMENT_PROOF_BYTES, normalizeTransactionReference } from "@/lib/payment";
+import { buildUpiUri, buildUpiUriForDestination, detectImageType, hashParticipantAccessToken, isDevE2EPreviewEnabled, isValidParticipantAccessToken, MAX_PAYMENT_PROOF_BYTES, normalizeTransactionReference } from "@/lib/payment";
+import { ACCOUNT_A_DESTINATION_ID, destinationIdForLegacyUpi } from "@/lib/payment-destinations";
 import { ensurePaymentIndexes, getPaymentProofBucket, getRegistrationsCollection } from "@/lib/mongodb";
 import { developmentTestRegistrationFilter, realRegistrationFilter } from "@/lib/registration-filters";
 import { dispatchTransactionalEmail } from "@/lib/email/transactional-email";
@@ -21,6 +22,39 @@ export async function registrationForParticipantToken(token: string): Promise<Wi
   return (await getRegistrationsCollection()).findOne({ schemaVersion: 2, participantAccessTokenHash: hashParticipantAccessToken(token) });
 }
 
+export type ResolvedDestination =
+  | { kind: "assigned"; destinationId: string; internalLabel: string; payeeName: string; upiId: string }
+  | { kind: "legacy"; destinationId: string | null; payeeName: string; upiId: string }
+  | { kind: "blocked_account_a_pending" }
+  | { kind: "none" };
+
+/**
+ * Resolver priority:
+ * 1. payment.destination (authoritative for new registrations)
+ * 2. legacy payment.snapshot payeeName/upiId
+ * BUT legacy Account A payment_pending records never expose the blocked QR.
+ */
+export function resolveRegistrationDestination(registration: Pick<RegistrationV2, "payment">): ResolvedDestination {
+  const assigned = registration.payment.destination;
+  if (assigned?.destinationId && assigned.payeeName && assigned.upiId) {
+    return { kind: "assigned", destinationId: assigned.destinationId, internalLabel: assigned.internalLabel, payeeName: assigned.payeeName, upiId: assigned.upiId };
+  }
+  const snapshot = registration.payment.snapshot;
+  const payeeName = snapshot.payeeName?.trim();
+  const upiId = snapshot.upiId?.trim();
+  if (!payeeName || !upiId) return { kind: "none" };
+  const legacyId = destinationIdForLegacyUpi(upiId);
+  const isAccountA = legacyId === ACCOUNT_A_DESTINATION_ID || upiId === "yashpatil76317@okicici";
+  if (isAccountA && registration.payment.status === "payment_pending") {
+    return { kind: "blocked_account_a_pending" };
+  }
+  return { kind: "legacy", destinationId: legacyId, payeeName, upiId };
+}
+
+export function isAccountAPendingBlocked(registration: Pick<RegistrationV2, "payment">): boolean {
+  return resolveRegistrationDestination(registration).kind === "blocked_account_a_pending";
+}
+
 export async function getPublicStatusForParticipantToken(token: string): Promise<PublicStatus | null> {
   const registration = await registrationForParticipantToken(token);
   if (!registration) return null;
@@ -28,6 +62,27 @@ export async function getPublicStatusForParticipantToken(token: string): Promise
   const awaitingPayment = registration.payment.status === "payment_pending" || registration.payment.status === "rejected";
   const [emailLocal = "", emailDomain = ""] = registration.participant.email.split("@");
   const participantEmailMasked = emailDomain ? `${emailLocal.slice(0, 2)}${"•".repeat(Math.max(1, emailLocal.length - 2))}@${emailDomain}` : undefined;
+  const resolved = resolveRegistrationDestination(registration);
+  const blocked = resolved.kind === "blocked_account_a_pending";
+  const destination =
+    resolved.kind === "assigned"
+      ? { destinationId: resolved.destinationId, internalLabel: resolved.internalLabel, payeeName: resolved.payeeName, upiId: resolved.upiId }
+      : resolved.kind === "legacy"
+        ? { destinationId: resolved.destinationId ?? "legacy-unknown", internalLabel: "Legacy", payeeName: resolved.payeeName, upiId: resolved.upiId }
+        : null;
+  let paymentInstructions: PublicStatus["paymentInstructions"];
+  if (awaitingPayment && !blocked && destination) {
+    if (snapshot.mode === "production" && snapshot.expectedAmount !== null) {
+      const upiUri = resolved.kind === "assigned"
+        ? buildUpiUriForDestination(destination, snapshot.expectedAmount, registration.publicId)
+        : buildUpiUri(snapshot, registration.publicId);
+      paymentInstructions = { payeeName: destination.payeeName, upiId: destination.upiId, upiUri };
+    } else if (resolved.kind === "assigned") {
+      paymentInstructions = { payeeName: destination.payeeName, upiId: destination.upiId };
+    } else {
+      paymentInstructions = { payeeName: snapshot.payeeName, upiId: snapshot.upiId, ...(snapshot.mode === "production" ? { upiUri: buildUpiUri(snapshot, registration.publicId) } : {}) };
+    }
+  }
   return {
     publicId: registration.publicId,
     participantName: registration.participant.fullName,
@@ -44,7 +99,9 @@ export async function getPublicStatusForParticipantToken(token: string): Promise
     rejectionReason: registration.payment.publicRejectionReason,
     submissionEmailStatus: registration.emailNotifications?.paymentSubmitted?.status === "sent" || registration.emailNotifications?.paymentSubmitted?.status === "failed" || registration.emailNotifications?.paymentSubmitted?.status === "suppressed" ? registration.emailNotifications.paymentSubmitted.status : "not_sent",
     verificationEmailStatus: registration.emailNotifications?.paymentVerified?.status === "sent" || registration.emailNotifications?.paymentVerified?.status === "failed" || registration.emailNotifications?.paymentVerified?.status === "suppressed" ? registration.emailNotifications.paymentVerified.status : "not_sent",
-    paymentInstructions: awaitingPayment ? { payeeName: snapshot.payeeName, upiId: snapshot.upiId, ...(snapshot.mode === "production" ? { upiUri: buildUpiUri(snapshot, registration.publicId) } : {}) } : undefined,
+    paymentDestination: destination,
+    requiresReassignment: blocked,
+    paymentInstructions,
   };
 }
 
@@ -60,6 +117,9 @@ export async function submitPaymentProofForParticipant(input: {
   }
   if (registration.payment.status !== "payment_pending" && registration.payment.status !== "rejected") {
     throw new PaymentFlowError("INVALID_STATE_TRANSITION", "This registration cannot accept another proof.");
+  }
+  if (isAccountAPendingBlocked(registration)) {
+    throw new PaymentFlowError("PAYMENT_REASSIGNMENT_REQUIRED", "This registration needs to be reassigned to an approved payment account before payment. Please contact the organizer.");
   }
   const parsedReference = TransactionReferenceSchema.safeParse(input.transactionReference);
   if (!parsedReference.success) throw new PaymentFlowError("INVALID_TRANSACTION_REFERENCE", "Enter a valid UPI Transaction / Reference ID.");
@@ -86,6 +146,13 @@ export async function submitPaymentProofForParticipant(input: {
     const wasResubmission = registration.payment.status === "rejected";
     const submissionVersion = registration.payment.proofHistory.length + 1;
     const emailEventKey = `illuminate-payment-submitted-${registration.publicId}-${submissionVersion}`;
+    const resolved = resolveRegistrationDestination(registration);
+    const proofDestination =
+      resolved.kind === "assigned"
+        ? { destinationId: resolved.destinationId, internalLabel: resolved.internalLabel, payeeName: resolved.payeeName, upiId: resolved.upiId }
+        : resolved.kind === "legacy"
+          ? { destinationId: resolved.destinationId ?? "legacy-unknown", internalLabel: "Legacy", payeeName: resolved.payeeName, upiId: resolved.upiId }
+          : undefined;
     const result = await (await getRegistrationsCollection()).findOneAndUpdate(
       { _id: registration._id, schemaVersion: 2, "payment.status": registration.payment.status },
       {
@@ -100,7 +167,8 @@ export async function submitPaymentProofForParticipant(input: {
           updatedAt: now,
         },
         $push: {
-          "payment.proofHistory": { fileId: uploaded.id.toString(), submittedAt: now, transactionReference: reference },
+          // deno-lint-ignore no-explicit-any
+          "payment.proofHistory": { fileId: uploaded.id.toString(), submittedAt: now, transactionReference: reference, ...(proofDestination ? { destination: proofDestination } : {}) } as unknown as Record<string, unknown>,
           audit: { type: wasResubmission ? "payment_proof_resubmitted" : "payment_proof_submitted", actor: "participant", at: now },
         },
       },
@@ -124,6 +192,8 @@ export async function rejectPaymentForReview(input: { publicId: string; publicRe
   const filter = isDevE2EPreviewEnabled()
     ? { schemaVersion: 2 as const, publicId: input.publicId, "payment.status": "submitted_for_verification" }
     : { ...realRegistrationFilter, publicId: input.publicId, "payment.status": "submitted_for_verification" };
+  // Rejected payments NEVER free the destination slot and NEVER switch
+  // destination. Resubmission stays against the same assigned destination.
   return collection.findOneAndUpdate(filter, {
     $set: {
       "payment.status": "rejected",
