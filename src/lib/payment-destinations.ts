@@ -3,11 +3,11 @@ import "server-only";
 import type { Collection, Document, Filter, FindOneAndUpdateOptions } from "mongodb";
 
 /**
- * STRICT 10-slot multi-UPI payment capacity system.
+ * Multi-UPI payment capacity system (10 slots standard per account).
  *
- * Four approved destinations (B → C → D → E), 10 slots each, 40 total.
- * Account A is permanently disabled / legacy-only and must never be
- * assigned to a new registration.
+ * Four approved destinations (B → C → D → E): B/C/D hold 10 slots each,
+ * E holds 20 (owner-approved extension), 50 total. Account A is permanently
+ * disabled / legacy-only and must never be assigned to a new registration.
  *
  * Slot consumption rule: a slot is consumed at ASSIGNMENT time (when a new
  * real production registration is created), not at admin verification time.
@@ -58,11 +58,26 @@ export const APPROVED_DESTINATION_IDS_IN_SEQUENCE = [
 
 export type ApprovedDestinationId = (typeof APPROVED_DESTINATION_IDS_IN_SEQUENCE)[number];
 
-export const TOTAL_PAYMENT_CAPACITY = 40;
+/** Standard per-account slot cap. Account E is an owner-approved exception at 20 (see seeds). */
 export const DESTINATION_SLOT_CAPACITY = 10;
 
 export const PAYMENT_CAPACITY_FULL_CODE = "PAYMENT_CAPACITY_FULL";
 export const PAYMENT_CAPACITY_FULL_MESSAGE = "Illuminate registration capacity is currently full.";
+
+/**
+ * Event seat cap (claimed seats, not payment slots): once this many real
+ * registrations are verified OR awaiting verification (proof submitted,
+ * decision pending), new production registrations close with
+ * EVENT_REGISTRATION_FULL — a thankful closed message, not an error wall.
+ * Awaiting proofs are counted because they are effectively spoken for and
+ * usually verify. Counts move only via participant proof submission and
+ * human admin review, so the check is a soft gate by design (no burst race
+ * to defend against, unlike slot claims).
+ */
+export const EVENT_VERIFIED_SEAT_LIMIT = 90;
+export const EVENT_REGISTRATION_FULL_CODE = "EVENT_REGISTRATION_FULL";
+export const EVENT_REGISTRATION_FULL_MESSAGE =
+  "Thank you so much for your interest in Illuminate 2026! All 90 seats have now been filled and registrations are closed. If you already registered, log in with your email or mobile to open your status. For queries, contact E-Cell MET Team at met.iot.ecell@gmail.com.";
 
 /** Canonical seed definitions. Counts are set by the seed script, never here. */
 export const PAYMENT_DESTINATION_SEEDS: ReadonlyArray<{
@@ -126,12 +141,21 @@ export const PAYMENT_DESTINATION_SEEDS: ReadonlyArray<{
     payeeName: "Sneha Dagwar (ECELL Team)",
     upiId: "snehadagwar06@okicici",
     sequence: 4,
-    capacity: 10,
+    capacity: 20,
     status: "available",
     ownerApproved: true,
     allowNewAssignments: true,
   },
 ];
+
+/**
+ * Total chargeable capacity, derived from the canonical seeds (single source
+ * of truth — a seed capacity change flows through automatically). Account A
+ * is excluded: capacity 0, never assignable.
+ */
+export const TOTAL_PAYMENT_CAPACITY: number = PAYMENT_DESTINATION_SEEDS.filter(
+  (s) => s.destinationId !== ACCOUNT_A_DESTINATION_ID,
+).reduce((sum, s) => sum + s.capacity, 0);
 
 /** Legacy snapshot UPI → destination mapping for audit/seed reconciliation. */
 export const LEGACY_UPI_TO_DESTINATION_ID: Record<string, string> = {

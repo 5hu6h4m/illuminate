@@ -30,7 +30,7 @@ function makeFakeDestinations(overrides = {}) {
     { _id: "id-b", destinationId: "account-b-shivam", internalLabel: "Shivam Account / Account B / E-Cell Payment 2", payeeName: "Shivam Jadhav (ECELL Team)", upiId: "shivujadhav2006@okicici", sequence: 1, capacity: 10, assignedCount: 0, status: "active", ownerApproved: true, allowNewAssignments: true },
     { _id: "id-c", destinationId: "account-c-bhushan", internalLabel: "Bhushan Bhusare / Account C / E-Cell Payment 3", payeeName: "Bhushan Bhusare (ECELL Team)", upiId: "bbhusare73@oksbi", sequence: 2, capacity: 10, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true },
     { _id: "id-d", destinationId: "account-d-shubham", internalLabel: "Shubham Account / Account D / E-Cell Payment 4", payeeName: "Shubham Jadhav (ECELL Team)", upiId: "9834717038@ybl", sequence: 3, capacity: 10, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true },
-    { _id: "id-e", destinationId: "account-e-sneha", internalLabel: "Sneha Dagwar / Account E / E-Cell Payment 5", payeeName: "Sneha Dagwar (ECELL Team)", upiId: "snehadagwar06@okicici", sequence: 4, capacity: 10, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true },
+    { _id: "id-e", destinationId: "account-e-sneha", internalLabel: "Sneha Dagwar / Account E / E-Cell Payment 5", payeeName: "Sneha Dagwar (ECELL Team)", upiId: "snehadagwar06@okicici", sequence: 4, capacity: 20, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true },
   ];
   const docs = new Map();
   for (const d of base) {
@@ -199,30 +199,31 @@ test("8. after D 10 → E", async () => {
   assert.equal(col.get("account-e-sneha").status, "active");
 });
 
-// 9. after E 10 → PAYMENT_CAPACITY_FULL
-test("9. after E 10 → PAYMENT_CAPACITY_FULL", async () => {
+// 9. after E 20 → PAYMENT_CAPACITY_FULL
+test("9. after E 20 → PAYMENT_CAPACITY_FULL", async () => {
   const col = makeFakeDestinations();
-  await claimN(col, 40);
+  await claimN(col, 50);
   const full = await claimNextDestinationSlot(col);
   assert.equal(full.ok, false);
   assert.equal(full.capacityFull, true);
   assert.equal(PAYMENT_CAPACITY_FULL_CODE, "PAYMENT_CAPACITY_FULL");
 });
 
-// 10. max total approved assignment count = 40
-test("10. max total approved assignment count = 40", () => {
-  assert.equal(TOTAL_PAYMENT_CAPACITY, 40);
+// 10. max total approved assignment count = 50 (B/C/D 10 each, E 20)
+test("10. max total approved assignment count = 50", () => {
+  assert.equal(TOTAL_PAYMENT_CAPACITY, 50);
   assert.equal(DESTINATION_SLOT_CAPACITY, 10);
   const approved = PAYMENT_DESTINATION_SEEDS.filter((s) => s.destinationId !== ACCOUNT_A_DESTINATION_ID);
   assert.equal(approved.length, 4);
-  assert.equal(approved.reduce((sum, s) => sum + s.capacity, 0), 40);
+  assert.equal(approved.reduce((sum, s) => sum + s.capacity, 0), 50);
+  assert.equal(approved.find((s) => s.destinationId === "account-e-sneha")?.capacity, 20);
   assert.deepEqual([...APPROVED_DESTINATION_IDS_IN_SEQUENCE], ["account-b-shivam", "account-c-bhushan", "account-d-shubham", "account-e-sneha"]);
 });
 
 // 11. Account A never assigned
 test("11. Account A never assigned", async () => {
   const col = makeFakeDestinations();
-  const results = await claimN(col, 40);
+  const results = await claimN(col, 50);
   assert.ok(results.every((r) => r.ok && r.destination.destinationId !== ACCOUNT_A_DESTINATION_ID));
   assert.equal(isAssignableDestination({ destinationId: "account-a-yash", status: "disabled", ownerApproved: false, allowNewAssignments: false, assignedCount: 0, capacity: 0 }), false);
   assert.equal(isAssignableDestination({ destinationId: "account-a-yash", status: "active", ownerApproved: true, allowNewAssignments: true, assignedCount: 0, capacity: 10 }), false);
@@ -373,17 +374,21 @@ test("24. reassignment cannot exceed target remaining capacity", () => {
 // 25. exhausted slot is never recycled
 test("25. exhausted slot is never recycled", async () => {
   const col = makeFakeDestinations();
-  await claimN(col, 40);
+  await claimN(col, 50);
   assert.equal(col.get("account-b-shivam").status, "exhausted");
   assert.equal(col.get("account-c-bhushan").status, "exhausted");
   assert.equal(col.get("account-d-shubham").status, "exhausted");
   assert.equal(col.get("account-e-sneha").status, "exhausted");
   const full = await claimNextDestinationSlot(col);
   assert.equal(full.capacityFull, true);
-  // No path reactivates an exhausted destination except failed-write release.
+  // Exhausted destinations reactivate only via the two sanctioned releases:
+  // failed-write compensation and admin hard-delete (both call
+  // releaseDestinationSlot); never on reject/verify transitions.
   const registrationsRoute = readFileSync(new URL("../src/app/api/payment/registrations/route.ts", import.meta.url), "utf8");
   const releaseCalls = (registrationsRoute.match(/releaseDestinationSlot/g) ?? []).length;
   assert.ok(releaseCalls >= 1);
+  const adminDelete = readFileSync(new URL("../src/app/api/admin/registrations/[publicId]/route.ts", import.meta.url), "utf8");
+  assert.match(adminDelete, /releaseDestinationSlot/);
   const service = readFileSync(new URL("../src/lib/payment-flow-service.ts", import.meta.url), "utf8");
   assert.doesNotMatch(service, /releaseDestinationSlot/);
 });

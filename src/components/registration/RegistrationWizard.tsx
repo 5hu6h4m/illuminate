@@ -31,6 +31,7 @@ const registrationCreationMessages: Record<string, string> = {
   REGISTRATION_WRITE_FAILED: "Could not create your registration (code DB-WRITE). Please retry.",
   PAYMENT_NOT_AVAILABLE: "Payment registration is not available yet. Please try again later.",
   PAYMENT_CAPACITY_FULL: "Illuminate registration capacity is currently full.",
+  EVENT_REGISTRATION_FULL: "Thank you so much for your interest in Illuminate 2026! All 90 seats have now been filled and registrations are closed. If you already registered, log in with your email or mobile to open your status. For queries, contact E-Cell MET Team at met.iot.ecell@gmail.com.",
 };
 const DUPLICATE_CODES = new Set([
   "REGISTRATION_ALREADY_STARTED",
@@ -112,6 +113,7 @@ export function RegistrationWizard({ preview, e2ePreview = false }: { preview: b
     {step === 0 && <Details draft={draft} errors={errors} setField={setField} onSubmit={review} heading={heading} />}
     {step === 1 && <Review draft={draft} consent={consent} errors={errors} setConsent={setConsent} onBack={() => setStep(0)} onEdit={() => setStep(0)} onContinue={() => void create()} creating={creating} heading={heading} />}
     {step === 2 && <DevPaymentPreview onBack={() => setStep(1)} heading={heading} />}
+    {formCode === "EVENT_REGISTRATION_FULL" && <RegistrationFullDialog onClose={() => setFormCode(null)} />}
     <p className="registration-login-hint registration-login-hint--center">Already registered? <Link href="/login">Log in with email or mobile</Link></p>
   </div>;
 }
@@ -132,7 +134,66 @@ function Review({ draft, consent, errors, setConsent, onBack, onEdit, onContinue
   return <section aria-labelledby="registration-review-title"><p className="text-eyebrow">Step 02</p><h1 id="registration-review-title" ref={heading} tabIndex={-1}>Review &amp; confirm</h1><p className="registration-step__intro">Check the essentials. Your payment registration is created only after you continue.</p><div className="registration-review"><div className="registration-review__heading"><h2>Your details</h2><button type="button" onClick={onEdit}>Edit</button></div><dl><div><dt>Full name</dt><dd>{draft.fullName}</dd></div><div><dt>Email</dt><dd>{draft.email}</dd></div><div><dt>Phone</dt><dd>{formatIndianPhone(draft.phone)}</dd></div><div><dt>College</dt><dd>{draft.college}</dd></div><div><dt>Branch</dt><dd>{draft.branch}</dd></div><div><dt>Year</dt><dd>{draft.year}</dd></div></dl></div><div className="registration-expectation"><p className="text-eyebrow">What happens next</p><p>Pay only the amount shown in your secure payment instructions, then submit payment evidence. A seat is confirmed only after manual verification.</p><p className="mt-2 text-sm">By continuing you agree to the <Link className="underline" href="/terms">registration terms</Link>, <Link className="underline" href="/privacy">privacy policy</Link>, and <Link className="underline" href="/refunds">refund policy</Link> (fees non-refundable once verified).</p></div><label className="registration-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} aria-invalid={Boolean(errors.consent)} aria-describedby={errors.consent ? "registration-consent-error" : undefined} /><span>I confirm these details are accurate and may be used for registration-related communication.</span></label>{errors.consent && <p id="registration-consent-error" role="alert" className="registration-field__error">{errors.consent}</p>}{errors.form && <p className="registration-field__error" role="alert">{errors.form}</p>}<div className="registration-actions"><button type="button" className="registration-back" onClick={onBack} disabled={creating}><ArrowLeft aria-hidden /> Back</button><button type="button" className="registration-primary-action" onClick={onContinue} disabled={creating}>{creating ? <><LoaderCircle className="animate-spin" aria-hidden /> Creating payment registration…</> : <>Continue to payment <ArrowRight aria-hidden /></>}</button></div></section>;
 }
 
-function DevPaymentPreview({ onBack, heading }: { onBack: () => void; heading: React.RefObject<HTMLHeadingElement | null> }) {
-  const copy = async () => { await navigator.clipboard?.writeText("preview@upi"); };
+/**
+ * Thankful "registrations are full" popup shown when the event seat cap
+ * (90 verified) is reached. Celebratory, not an error wall: thanks the
+ * visitor, states the seats are filled, and routes existing holders to
+ * login. Escape or backdrop click dismisses; the inline form message stays.
+ */
+function RegistrationFullDialog({ onClose }: { onClose: () => void }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    headingRef.current?.focus();
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      previouslyFocused?.focus?.();
+    };
+  }, [onClose]);
+  return (
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/75 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="registration-full-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section className="credential-frame mx-auto my-8 max-w-xl">
+        <div className="credential-frame__inner p-6 text-center">
+          <p className="text-eyebrow" aria-hidden>
+            Thank you
+          </p>
+          <h2 id="registration-full-title" ref={headingRef} tabIndex={-1} className="mt-2 text-2xl font-semibold">
+            Registrations are full
+          </h2>
+          <p className="mt-3 text-sm text-text-secondary">
+            Thank you so much for your interest in Illuminate 2026! All 90 seats have now been filled and
+            registrations are closed. We are grateful for the overwhelming response.
+          </p>
+          <p className="mt-2 text-sm text-text-secondary">
+            Already registered? <Link className="underline" href="/login">Log in with your email or mobile</Link> to
+            open your status. For queries, contact E-Cell MET Team at met.iot.ecell@gmail.com.
+          </p>
+          <div className="registration-actions mt-5 justify-center">
+            <Link href="/login" className="registration-primary-action">
+              Log in to your registration
+            </Link>
+            <button type="button" className="registration-back" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DevPaymentPreview({ onBack, heading }: { onBack: () => void; heading: React.RefObject<HTMLHeadingElement | null> }) {  const copy = async () => { await navigator.clipboard?.writeText("preview@upi"); };
   return <section aria-labelledby="registration-payment-title"><p className="text-eyebrow text-brand-ember">Step 03</p><h1 id="registration-payment-title" ref={heading} tabIndex={-1}>Payment preview</h1><p className="registration-step__intro">This development-only visual preview never creates a UPI payment link or registration.</p><div className="registration-handoff"><p className="font-semibold text-amber-200">DEV PREVIEW — NOT PAYABLE</p><div className="my-5 max-w-[260px] rounded-xl bg-white p-4"><Image unoptimized src="/api/payment/preview-qr" alt="Development QR that encodes ILLUMINATE_DEV_PAYMENT_PREVIEW_ONLY" width={720} height={720} className="h-auto w-full" /></div><dl className="space-y-2"><div className="flex justify-between gap-4"><dt>Pay</dt><dd>₹XXX</dd></div><div className="flex justify-between gap-4"><dt>To</dt><dd>Preview recipient</dd></div><div className="flex justify-between gap-4"><dt>UPI ID</dt><dd><button type="button" onClick={() => void copy()} className="underline">preview@upi <Copy className="inline h-3.5" /></button></dd></div></dl><p className="mt-5 text-sm text-white/65">This screen is for layout review only. Its QR encodes only <code>ILLUMINATE_DEV_PAYMENT_PREVIEW_ONLY</code>, never <code>upi://pay</code>, and it cannot collect money or accept a proof.</p></div><div className="registration-actions"><button type="button" className="registration-back" onClick={onBack}><ArrowLeft aria-hidden /> Back to review</button><Link href="/" className="registration-primary-action">Back to event <ArrowRight aria-hidden /></Link></div></section>;
 }

@@ -10,6 +10,9 @@ import { developmentTestRegistrationFilter, realRegistrationFilter } from "@/lib
 import {
   PAYMENT_CAPACITY_FULL_CODE,
   PAYMENT_CAPACITY_FULL_MESSAGE,
+  EVENT_REGISTRATION_FULL_CODE,
+  EVENT_REGISTRATION_FULL_MESSAGE,
+  EVENT_VERIFIED_SEAT_LIMIT,
   buildDestinationSnapshot,
   claimNextDestinationSlot,
   releaseDestinationSlot,
@@ -172,6 +175,21 @@ export async function POST(request: Request) {
     }
 
     // ---- Production path: atomic destination slot reservation ----
+    // Event seat cap (soft close): once 90 real seats are verified or
+    // awaiting verification (proof submitted, decision pending), new
+    // production registrations close with a thankful FULL response.
+    // Idempotent replays and identity duplicates resolve above, so existing
+    // holders never see this — only genuinely new seats. Awaiting proofs
+    // count because they are effectively spoken for and usually verify.
+    // Counts move solely via proof submission + human admin review, so no
+    // burst race can meaningfully overshoot between this check and the slot
+    // claim below. A transient count failure (-1) fails open: the slot
+    // system remains the hard cap.
+    const claimedCount = await collection.countDocuments({ ...realRegistrationFilter, "payment.status": { $in: ["verified", "submitted_for_verification"] } }).catch(() => -1);
+    if (claimedCount >= EVENT_VERIFIED_SEAT_LIMIT) {
+      await recordDestinationAudit([{ type: "event_registration_full", metadata: { claimedCount, seatLimit: EVENT_VERIFIED_SEAT_LIMIT } }]);
+      return apiError(503, EVENT_REGISTRATION_FULL_CODE, EVENT_REGISTRATION_FULL_MESSAGE);
+    }
     let destinations;
     try {
       destinations = await getPaymentDestinationsCollection();

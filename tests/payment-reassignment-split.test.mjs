@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { TOTAL_PAYMENT_CAPACITY } from "../src/lib/payment-destinations.ts";
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -16,7 +17,7 @@ function makeDestinations() {
     ["account-b-shivam", { destinationId: "account-b-shivam", sequence: 1, capacity: 10, assignedCount: 0, status: "active", ownerApproved: true, allowNewAssignments: true, payeeName: "B", upiId: "b@upi", internalLabel: "B" }],
     ["account-c-bhushan", { destinationId: "account-c-bhushan", sequence: 2, capacity: 10, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true, payeeName: "C", upiId: "c@upi", internalLabel: "C" }],
     ["account-d-shubham", { destinationId: "account-d-shubham", sequence: 3, capacity: 10, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true, payeeName: "D", upiId: "d@upi", internalLabel: "D" }],
-    ["account-e-sneha", { destinationId: "account-e-sneha", sequence: 4, capacity: 10, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true, payeeName: "E", upiId: "e@upi", internalLabel: "E" }],
+    ["account-e-sneha", { destinationId: "account-e-sneha", sequence: 4, capacity: 20, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true, payeeName: "E", upiId: "e@upi", internalLabel: "E" }],
   ]);
   return {
     docs,
@@ -200,18 +201,18 @@ test("15. concurrent state change does not consume phantom capacity", async () =
   assert.notEqual(store.get("account-b-shivam").status, "exhausted");
 });
 
-test("16. no destination exceeds 10", async () => {
+test("16. no destination exceeds its own capacity", async () => {
   const { store } = await runScenario();
   for (const id of ["account-b-shivam", "account-c-bhushan", "account-d-shubham", "account-e-sneha"]) {
-    assert.ok(store.get(id).assignedCount <= 10, `${id} exceeded capacity`);
+    assert.ok(store.get(id).assignedCount <= store.get(id).capacity, `${id} exceeded capacity`);
   }
 });
 
-test("remaining approved capacity after 16-way split is 24", async () => {
+test("remaining approved capacity after 16-way split matches TOTAL", async () => {
   const { store } = await runScenario();
   const assigned = ["account-b-shivam", "account-c-bhushan", "account-d-shubham", "account-e-sneha"].reduce((s, id) => s + store.get(id).assignedCount, 0);
   assert.equal(assigned, 16);
-  assert.equal(40 - assigned, 24);
+  assert.equal(TOTAL_PAYMENT_CAPACITY - assigned, 34);
 });
 
 test("route implements explicit partial opt-in with oldest-first selection and refund", () => {
