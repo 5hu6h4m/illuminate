@@ -6,6 +6,7 @@ import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { event, isConfirmedText } from "@/config/event";
 import { illuminateContent } from "@/content/illuminate";
 import { Container } from "@/components/ui/Container";
+import { RegistrationClosedDialog } from "@/components/landing/RegistrationClosedDialog";
 import { heroWordClass, isBusinessToken, stripTrailingPunctuation } from "@/lib/hero-words";
 
 const HERO_VIDEO_SRC =
@@ -31,10 +32,13 @@ function renderHeroToken(token: string, index: number) {
   );
 }
 
-export function CinematicHero({ registrationAvailable }: { registrationAvailable: boolean }) {
-  const cta = registrationAvailable
-    ? { href: "/register", label: "Register for Illuminate" }
-    : { href: "#event-details", label: "View event details" };
+export function CinematicHero({ registrationAvailable, manuallyClosed = false }: { registrationAvailable: boolean; manuallyClosed?: boolean }) {
+  const [closedOpen, setClosedOpen] = useState(false);
+  const cta = manuallyClosed
+    ? { href: "#event-details", label: "Registration Closed" }
+    : registrationAvailable
+      ? { href: "/register", label: "Register for Illuminate" }
+      : { href: "#event-details", label: "View event details" };
   const deadline = isConfirmedText(event.registration.deadline) ? event.registration.deadline.value : null;
   const eligibility = isConfirmedText(event.registration.eligibility) ? event.registration.eligibility.value : null;
   const facts = [
@@ -105,10 +109,17 @@ export function CinematicHero({ registrationAvailable }: { registrationAvailable
           <p className="cinematic-hero__summary">{illuminateContent.phaseOne.hero.description}</p>
           <p className="cinematic-hero__association">{event.association.label}</p>
           <div className="cinematic-hero__actions">
-            <Link href={cta.href} className="cinematic-hero__button">
-              <span>{cta.label}</span>
-              <ArrowUpRight aria-hidden />
-            </Link>
+            {manuallyClosed ? (
+              <button type="button" className="cinematic-hero__button" onClick={() => setClosedOpen(true)}>
+                <span>{cta.label}</span>
+                <ArrowUpRight aria-hidden />
+              </button>
+            ) : (
+              <Link href={cta.href} className="cinematic-hero__button">
+                <span>{cta.label}</span>
+                <ArrowUpRight aria-hidden />
+              </Link>
+            )}
             <a href="#entrepreneurship" className="cinematic-hero__link">
               See what you&apos;ll learn <ArrowDownRight aria-hidden />
             </a>
@@ -127,6 +138,7 @@ export function CinematicHero({ registrationAvailable }: { registrationAvailable
           </div>
         </div>
       </Container>
+      {closedOpen ? <RegistrationClosedDialog variant="closed" onClose={() => setClosedOpen(false)} /> : null}
     </section>
   );
 }

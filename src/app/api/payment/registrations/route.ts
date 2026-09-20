@@ -4,6 +4,7 @@ import { PendingRegistrationRequestSchema, type RegistrationV2 } from "@/lib/reg
 import { ensurePaymentIndexes, getRegistrationsCollection, getPaymentDestinationsCollection, ensurePaymentDestinationIndexes, getDb, isDbConfigured } from "@/lib/mongodb";
 import { apiError, clientIp, sensitiveJson } from "@/lib/http";
 import { generateParticipantAccessToken, generatePublicRegistrationId, getConfirmedPaymentSnapshot, getDevelopmentPreviewSnapshot, hashParticipantAccessToken } from "@/lib/payment";
+import { isRegistrationManuallyClosed } from "@/lib/site-settings";
 import { enforceRateLimit, enforceRegistrationCreationRateLimit, REGISTRATION_CREATE_IP_LIMIT, REGISTRATION_CREATE_IP_WINDOW_MS } from "@/lib/rate-limit";
 import { decideExistingIdentityDuplicate, isIdempotentReplayForIdentity } from "@/lib/registration-duplicate-policy";
 import { developmentTestRegistrationFilter, realRegistrationFilter } from "@/lib/registration-filters";
@@ -185,6 +186,15 @@ export async function POST(request: Request) {
     // burst race can meaningfully overshoot between this check and the slot
     // claim below. A transient count failure (-1) fails open: the slot
     // system remains the hard cap.
+    // Admin manual close wins over the date window for genuinely new seats.
+    // It sits here — after idempotent replays and identity duplicates resolve
+    // above — so existing holders never see it, exactly like the seat-cap
+    // gate below. Dev E2E preview bypasses it so local workflow review never
+    // depends on production state. Login, status, and proof routes are
+    // intentionally never gated here.
+    if (!developmentSnapshot && await isRegistrationManuallyClosed()) {
+      return apiError(403, "REGISTRATION_CLOSED", "Registrations are closed. If you already registered, log in with your email or mobile to open your status.");
+    }
     const claimedCount = await collection.countDocuments({ ...realRegistrationFilter, "payment.status": { $in: ["verified", "submitted_for_verification"] } }).catch(() => -1);
     if (claimedCount >= EVENT_VERIFIED_SEAT_LIMIT) {
       await recordDestinationAudit([{ type: "event_registration_full", metadata: { claimedCount, seatLimit: EVENT_VERIFIED_SEAT_LIMIT } }]);

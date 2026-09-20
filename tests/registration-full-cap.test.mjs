@@ -38,10 +38,12 @@ test("registration route gates new production seats on claimed count", () => {
 test("wizard maps the full code to a thankful message and a popup dialog", () => {
   assert.match(wizard, /EVENT_REGISTRATION_FULL/);
   assert.match(wizard, /Thank you so much for your interest in Illuminate 2026/);
-  assert.match(wizard, /RegistrationFullDialog/);
-  assert.match(wizard, /role="dialog"/);
-  assert.match(wizard, /aria-modal="true"/);
-  assert.match(wizard, /Registrations are full/);
-  assert.match(wizard, /Log in to your registration/);
-  assert.match(wizard, /Escape/);
+  assert.match(wizard, /RegistrationClosedDialog/);
+  assert.match(wizard, /variant="full"/);
+  const dialog = readFileSync(new URL("../src/components/landing/RegistrationClosedDialog.tsx", import.meta.url), "utf8");
+  assert.match(dialog, /role="dialog"/);
+  assert.match(dialog, /aria-modal="true"/);
+  assert.match(dialog, /Registrations are full/);
+  assert.match(dialog, /Log in to your registration/);
+  assert.match(dialog, /Escape/);
 });

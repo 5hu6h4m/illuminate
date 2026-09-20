@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, Copy, LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { registrationForm } from "@/config/registration";
+import { RegistrationClosedDialog } from "@/components/landing/RegistrationClosedDialog";
 import { createRegistrationDetailsSchema, emptyRegistrationDetails, formatIndianPhone, type RegistrationDetails, type RegistrationDetailsDraft } from "@/lib/registration-details";
 import { clearAttempt, loadPersistedAttempt, saveRegistration, storeAttempt } from "@/lib/registration-continuation";
 
@@ -32,6 +33,7 @@ const registrationCreationMessages: Record<string, string> = {
   PAYMENT_NOT_AVAILABLE: "Payment registration is not available yet. Please try again later.",
   PAYMENT_CAPACITY_FULL: "Illuminate registration capacity is currently full.",
   EVENT_REGISTRATION_FULL: "Thank you so much for your interest in Illuminate 2026! All 90 seats have now been filled and registrations are closed. If you already registered, log in with your email or mobile to open your status. For queries, contact E-Cell MET Team at met.iot.ecell@gmail.com.",
+  REGISTRATION_CLOSED: "Thank you so much for your interest in Illuminate 2026! New registrations are currently closed. If you already registered, log in with your email or mobile to open your status. For queries, contact E-Cell MET Team at met.iot.ecell@gmail.com.",
 };
 const DUPLICATE_CODES = new Set([
   "REGISTRATION_ALREADY_STARTED",
@@ -113,7 +115,8 @@ export function RegistrationWizard({ preview, e2ePreview = false }: { preview: b
     {step === 0 && <Details draft={draft} errors={errors} setField={setField} onSubmit={review} heading={heading} />}
     {step === 1 && <Review draft={draft} consent={consent} errors={errors} setConsent={setConsent} onBack={() => setStep(0)} onEdit={() => setStep(0)} onContinue={() => void create()} creating={creating} heading={heading} />}
     {step === 2 && <DevPaymentPreview onBack={() => setStep(1)} heading={heading} />}
-    {formCode === "EVENT_REGISTRATION_FULL" && <RegistrationFullDialog onClose={() => setFormCode(null)} />}
+    {formCode === "EVENT_REGISTRATION_FULL" && <RegistrationClosedDialog variant="full" onClose={() => setFormCode(null)} />}
+    {formCode === "REGISTRATION_CLOSED" && <RegistrationClosedDialog variant="closed" onClose={() => setFormCode(null)} />}
     <p className="registration-login-hint registration-login-hint--center">Already registered? <Link href="/login">Log in with email or mobile</Link></p>
   </div>;
 }
@@ -132,66 +135,6 @@ function Details({ draft, errors, setField, onSubmit, heading }: { draft: Regist
 
 function Review({ draft, consent, errors, setConsent, onBack, onEdit, onContinue, creating, heading }: { draft: RegistrationDetails; consent: boolean; errors: Partial<Record<Field | "consent" | "form", string>>; setConsent: (value: boolean) => void; onBack: () => void; onEdit: () => void; onContinue: () => void; creating: boolean; heading: React.RefObject<HTMLHeadingElement | null> }) {
   return <section aria-labelledby="registration-review-title"><p className="text-eyebrow">Step 02</p><h1 id="registration-review-title" ref={heading} tabIndex={-1}>Review &amp; confirm</h1><p className="registration-step__intro">Check the essentials. Your payment registration is created only after you continue.</p><div className="registration-review"><div className="registration-review__heading"><h2>Your details</h2><button type="button" onClick={onEdit}>Edit</button></div><dl><div><dt>Full name</dt><dd>{draft.fullName}</dd></div><div><dt>Email</dt><dd>{draft.email}</dd></div><div><dt>Phone</dt><dd>{formatIndianPhone(draft.phone)}</dd></div><div><dt>College</dt><dd>{draft.college}</dd></div><div><dt>Branch</dt><dd>{draft.branch}</dd></div><div><dt>Year</dt><dd>{draft.year}</dd></div></dl></div><div className="registration-expectation"><p className="text-eyebrow">What happens next</p><p>Pay only the amount shown in your secure payment instructions, then submit payment evidence. A seat is confirmed only after manual verification.</p><p className="mt-2 text-sm">By continuing you agree to the <Link className="underline" href="/terms">registration terms</Link>, <Link className="underline" href="/privacy">privacy policy</Link>, and <Link className="underline" href="/refunds">refund policy</Link> (fees non-refundable once verified).</p></div><label className="registration-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} aria-invalid={Boolean(errors.consent)} aria-describedby={errors.consent ? "registration-consent-error" : undefined} /><span>I confirm these details are accurate and may be used for registration-related communication.</span></label>{errors.consent && <p id="registration-consent-error" role="alert" className="registration-field__error">{errors.consent}</p>}{errors.form && <p className="registration-field__error" role="alert">{errors.form}</p>}<div className="registration-actions"><button type="button" className="registration-back" onClick={onBack} disabled={creating}><ArrowLeft aria-hidden /> Back</button><button type="button" className="registration-primary-action" onClick={onContinue} disabled={creating}>{creating ? <><LoaderCircle className="animate-spin" aria-hidden /> Creating payment registration…</> : <>Continue to payment <ArrowRight aria-hidden /></>}</button></div></section>;
-}
-
-/**
- * Thankful "registrations are full" popup shown when the event seat cap
- * (90 verified) is reached. Celebratory, not an error wall: thanks the
- * visitor, states the seats are filled, and routes existing holders to
- * login. Escape or backdrop click dismisses; the inline form message stays.
- */
-function RegistrationFullDialog({ onClose }: { onClose: () => void }) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    headingRef.current?.focus();
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      previouslyFocused?.focus?.();
-    };
-  }, [onClose]);
-  return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/75 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="registration-full-title"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section className="credential-frame mx-auto my-8 max-w-xl">
-        <div className="credential-frame__inner p-6 text-center">
-          <p className="text-eyebrow" aria-hidden>
-            Thank you
-          </p>
-          <h2 id="registration-full-title" ref={headingRef} tabIndex={-1} className="mt-2 text-2xl font-semibold">
-            Registrations are full
-          </h2>
-          <p className="mt-3 text-sm text-text-secondary">
-            Thank you so much for your interest in Illuminate 2026! All 90 seats have now been filled and
-            registrations are closed. We are grateful for the overwhelming response.
-          </p>
-          <p className="mt-2 text-sm text-text-secondary">
-            Already registered? <Link className="underline" href="/login">Log in with your email or mobile</Link> to
-            open your status. For queries, contact E-Cell MET Team at met.iot.ecell@gmail.com.
-          </p>
-          <div className="registration-actions mt-5 justify-center">
-            <Link href="/login" className="registration-primary-action">
-              Log in to your registration
-            </Link>
-            <button type="button" className="registration-back" onClick={onClose}>
-              Close
-            </button>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
 }
 
 function DevPaymentPreview({ onBack, heading }: { onBack: () => void; heading: React.RefObject<HTMLHeadingElement | null> }) {  const copy = async () => { await navigator.clipboard?.writeText("preview@upi"); };
