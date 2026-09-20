@@ -172,6 +172,9 @@ export function useDashboard() {
         const json = await response.json().catch(() => null);
         if (!response.ok) throw new Error(json?.error?.message || "Could not delete this registration. Refresh and try again.");
         setData(await fetchDashboard());
+        // The delete endpoint releases the payment-destination slot; tell the
+        // CapacityPanel to reload so per-account counts never look stale.
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("illuminate:capacity-changed"));
         setNotice(`Deleted ${publicId}.`);
         setError("");
       } finally {

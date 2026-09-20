@@ -98,7 +98,7 @@ export type AuditEvent = { type: AuditEventType; actor: "participant" | "admin" 
  * into `RegistrationV2["audit"]` — that record is hard-deleted with the
  * registration, while the `admin_audit` snapshot survives it).
  */
-export type AdminAuditEventType = "admin_login_success" | "admin_login_failed" | "admin_registration_deleted" | "admin_registration_deleted_verified" | "admin_ecell_flag_changed" | "payment_destination_exhausted" | "payment_destination_activated" | "payment_destination_disabled" | "payment_capacity_full" | "admin_payment_destination_reassigned";
+export type AdminAuditEventType = "admin_login_success" | "admin_login_failed" | "admin_registration_deleted" | "admin_registration_deleted_verified" | "admin_ecell_flag_changed" | "payment_destination_exhausted" | "payment_destination_activated" | "payment_destination_disabled" | "payment_destination_released" | "payment_capacity_full" | "admin_payment_destination_reassigned";
 export type AdminAuditEvent = { type: AdminAuditEventType; actor: "admin" | "system"; at: Date; metadata?: Record<string, string | number | boolean | string[] | null> };
 export type TransactionalEmailStatus = "pending" | "sending" | "sent" | "failed" | "suppressed";
 export type TransactionalEmailNotification = { status: TransactionalEmailStatus; eventKey: string; lastAttemptAt?: Date; sentAt?: Date; resendId?: string; errorCode?: string };

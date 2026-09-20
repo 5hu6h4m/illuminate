@@ -2,8 +2,9 @@ import { ObjectId } from "mongodb";
 import { isAdminAuthenticated, verifyAdminPassword } from "@/lib/admin-auth";
 import { AdminDeleteSchema, AdminEcellSchema, AdminRejectSchema, AdminVerifySchema } from "@/lib/registration-v2";
 import { apiError, clientIp, isSameOrigin, sensitiveJson } from "@/lib/http";
-import { getDb, getPaymentProofBucket, getRegistrationsCollection, isDbConfigured } from "@/lib/mongodb";
+import { getDb, getPaymentDestinationsCollection, getPaymentProofBucket, getRegistrationsCollection, isDbConfigured } from "@/lib/mongodb";
 import { isDevE2EPreviewEnabled } from "@/lib/payment";
+import { APPROVED_DESTINATION_IDS_IN_SEQUENCE, releaseDestinationSlot } from "@/lib/payment-destinations";
 import { enforceAdminDeleteRateLimit, enforceAdminEcellRateLimit } from "@/lib/rate-limit";
 import { PaymentFlowError, rejectPaymentForReview, setEcellMemberFlag, verifyPaymentForReview } from "@/lib/payment-flow-service";
 
@@ -107,11 +108,54 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
       } catch { /* proof cleanup is best-effort; the record deletion above is authoritative */ }
     }
     const wasVerified = paymentStatus === "verified";
+    // --- Capacity integrity: release the assigned payment-destination slot ---
+    // `assignedCount` is the source of truth for CapacityPanel / FULL checks.
+    // Without this, a deleted registration leaks its slot forever (false FULL,
+    // stale per-account counts). Only real production records with an approved
+    // destination (B→C→D→E) ever consumed a slot: test/dev-preview records
+    // bypass destinations, Account A is legacy/disabled, and legacy docs
+    // without `payment.destination` never claimed. The destinationId is
+    // allowlisted before use, the decrement is atomic ($inc with $gt: 0 so
+    // counts never go negative), and release is idempotent — only the single
+    // winner of the atomic findOneAndDelete above reaches this path, so a
+    // retried DELETE (now 404) never double-releases. Best-effort: the record
+    // deletion above is authoritative; a destination failure is logged and
+    // surfaced in audit but never rolls back the delete.
+    const rawDestinationId = removed.payment?.destination?.destinationId;
+    const assignedDestinationId =
+      typeof rawDestinationId === "string" &&
+      (APPROVED_DESTINATION_IDS_IN_SEQUENCE as readonly string[]).includes(rawDestinationId) &&
+      removed.isTest !== true &&
+      removed.environment !== "development"
+        ? rawDestinationId
+        : null;
+    let destinationReleased = false;
+    let destinationReleaseError: string | null = null;
+    if (assignedDestinationId) {
+      try {
+        const destinations = await getPaymentDestinationsCollection();
+        const before = await destinations.findOne(
+          { destinationId: assignedDestinationId },
+          { projection: { assignedCount: 1 } },
+        );
+        await releaseDestinationSlot(destinations, assignedDestinationId);
+        // releaseDestinationSlot is a no-op when assignedCount is already 0;
+        // only report a release when a slot was actually held.
+        destinationReleased = (before?.assignedCount ?? 0) > 0;
+      } catch (releaseError) {
+        destinationReleaseError = releaseError instanceof Error ? releaseError.message : String(releaseError ?? "unknown");
+        console.warn("[admin-review] destination slot release failed", publicId, assignedDestinationId, destinationReleaseError);
+      }
+    }
     try {
-      await (await getDb()).collection("admin_audit").insertOne({ type: wasVerified ? "admin_registration_deleted_verified" : "admin_registration_deleted", actor: "admin", at: new Date(), metadata: { publicId, wasTest, paymentStatus, expectedAmount: existing.payment.snapshot?.expectedAmount ?? null, ecellMember: existing.ecellMember === true, transactionReference: existing.payment.transactionReference ?? null, verifiedAt: existing.payment.verifiedAt ?? null, proofIds, reason: parsed.data.reason } });
+      const db = await getDb();
+      await db.collection("admin_audit").insertOne({ type: wasVerified ? "admin_registration_deleted_verified" : "admin_registration_deleted", actor: "admin", at: new Date(), metadata: { publicId, wasTest, paymentStatus, expectedAmount: existing.payment.snapshot?.expectedAmount ?? null, ecellMember: existing.ecellMember === true, transactionReference: existing.payment.transactionReference ?? null, verifiedAt: existing.payment.verifiedAt ?? null, proofIds, reason: parsed.data.reason, destinationId: assignedDestinationId, destinationReleased, ...(destinationReleaseError ? { destinationReleaseError } : {}) } });
+      if (destinationReleased && assignedDestinationId) {
+        await db.collection("admin_audit").insertOne({ type: "payment_destination_released", actor: "system", at: new Date(), metadata: { destinationId: assignedDestinationId, publicId, paymentStatus, wasTest } }).catch(() => undefined);
+      }
     } catch (auditError) {
       console.warn("[admin-review] deletion audit insert failed", publicId, auditError instanceof Error ? auditError.message : auditError);
     }
-    return sensitiveJson({ publicId, deleted: true, wasTest, wasVerified });
+    return sensitiveJson({ publicId, deleted: true, wasTest, wasVerified, destinationId: assignedDestinationId, destinationReleased });
   } catch { return apiError(503, "SERVER_ERROR", "Could not delete the registration."); }
 }

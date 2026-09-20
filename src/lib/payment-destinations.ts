@@ -11,9 +11,13 @@ import type { Collection, Document, Filter, FindOneAndUpdateOptions } from "mong
  *
  * Slot consumption rule: a slot is consumed at ASSIGNMENT time (when a new
  * real production registration is created), not at admin verification time.
- * Slots are non-reusable by default — abandoned / never-paid slots stay
- * consumed. Only a failed DB write before commit may release its slot
- * (see releaseDestinationSlot), never a rejected / verified transition.
+ * Slots are non-reusable across status transitions — abandoned / never-paid /
+ * rejected / verified slots stay consumed while the registration row exists.
+ * A slot is released exactly twice: (1) a failed DB write before commit leaks
+ * a claim (see releaseDestinationSlot), and (2) an admin hard-delete removes
+ * the registration row entirely (DELETE /api/admin/registrations/[publicId]
+ * calls releaseDestinationSlot after the atomic findOneAndDelete). Never on
+ * a rejected / verified transition.
  */
 
 export type DestinationStatus = "active" | "available" | "exhausted" | "disabled";
@@ -340,11 +344,18 @@ export async function activateNextAvailableDestination(
 }
 
 /**
- * Release a slot reserved by a registration write that FAILED before commit
- * (duplicate-key race, idempotent replay race, DB error). This is the ONLY
- * permitted automatic decrement — abandoned / unpaid / rejected slots are
- * never recycled. If the destination was marked exhausted by this leaked
- * claim, flip it back to active so the slot is not lost.
+ * Release a slot previously reserved by a registration.
+ *
+ * Permitted callers (and ONLY these):
+ *  1. a registration write that FAILED before commit (duplicate-key race,
+ *     idempotent replay race, DB error) — compensating release, and
+ *  2. an admin hard-delete AFTER a successful atomic findOneAndDelete —
+ *     the registration row no longer exists, so its slot must be freed or
+ *     capacity leaks permanently (false PAYMENT_CAPACITY_FULL, stale
+ *     per-account counts in the admin CapacityPanel).
+ * Never on rejected / verified transitions while the row still exists.
+ * If the destination was marked exhausted by the released claim, flip it
+ * back to active so the slot is not lost.
  */
 export async function releaseDestinationSlot(
   collection: Collection<PaymentDestination> | DestinationCollectionLike,

@@ -30,7 +30,14 @@ export function CapacityPanel() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(timer);
+    // Admin deletes release a destination slot server-side; refresh here so
+    // the per-account counts update without a manual Refresh click.
+    const onCapacityChanged = () => void load();
+    window.addEventListener("illuminate:capacity-changed", onCapacityChanged);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("illuminate:capacity-changed", onCapacityChanged);
+    };
   }, [load]);
 
   const checkCount = async () => {
