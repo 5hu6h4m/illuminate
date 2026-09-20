@@ -87,7 +87,9 @@ async function run() {
   // Backup first (auth material excluded: token/idempotency hashes stay in
   // the DB's audit snapshot only, never in a flat file).
   const backup = pending.map((r) => {
-    const { participantAccessTokenHash: _t, idempotencyKeyHash: _k, ...rest } = r as Record<string, unknown>;
+    const rest = { ...(r as Record<string, unknown>) };
+    delete rest.participantAccessTokenHash;
+    delete rest.idempotencyKeyHash;
     return rest;
   });
   const backupPath = `/tmp/opencode/pending-clear-backup-${now.toISOString().replace(/[:.]/g, "-")}.json`;
@@ -187,7 +189,6 @@ async function run() {
   for (const g of grouped) if (typeof g._id === "string" && g._id) live.set(g._id, g.count);
   const destinations = await getPaymentDestinationsCollection();
   const docs = await destinations.find({}).sort({ sequence: 1 }).toArray();
-  const byId = new Map(docs.map((d) => [d.destinationId, d]));
   for (const d of docs.filter((x) => APPROVED.includes(x.destinationId as never) && x.status !== "disabled")) {
     const proposed = live.get(d.destinationId) ?? 0;
     let status = d.status;

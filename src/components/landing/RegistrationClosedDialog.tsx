@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 
 export type RegistrationClosedVariant = "closed" | "full";
 
@@ -23,10 +24,21 @@ const COPY: Record<RegistrationClosedVariant, { titleId: string; title: string; 
  * registrations; `full` = the 90-seat event cap was reached. Celebratory,
  * not an error wall: thanks the visitor and routes existing holders to
  * login. Escape or backdrop click dismisses; any inline form message stays.
+ *
+ * Rendered via portal to document.body: callers live inside the sticky
+ * landing header (backdrop-filter makes it a containing block for fixed
+ * descendants), so an inline fixed overlay would clip under the header bar.
  */
 export function RegistrationClosedDialog({ variant, onClose }: { variant: RegistrationClosedVariant; onClose: () => void }) {
   const copy = COPY[variant];
   const headingRef = useRef<HTMLHeadingElement>(null);
+  // Portal target exists only on the client; server snapshot renders null so
+  // SSR markup matches hydration. Re-reads client-side after hydration.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -34,16 +46,21 @@ export function RegistrationClosedDialog({ variant, onClose }: { variant: Regist
     };
     document.addEventListener("keydown", onKeyDown);
     const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     headingRef.current?.focus();
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus?.();
     };
   }, [onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/75 p-4 backdrop-blur-sm"
+      className="registration-closed-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby={copy.titleId}
@@ -51,29 +68,30 @@ export function RegistrationClosedDialog({ variant, onClose }: { variant: Regist
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <section className="credential-frame mx-auto my-8 max-w-xl">
-        <div className="credential-frame__inner p-6 text-center">
+      <section className="credential-frame registration-closed-panel">
+        <div className="credential-frame__inner registration-closed-inner">
           <p className="text-eyebrow" aria-hidden>
             Thank you
           </p>
-          <h2 id={copy.titleId} ref={headingRef} tabIndex={-1} className="mt-2 text-2xl font-semibold">
+          <h2 id={copy.titleId} ref={headingRef} tabIndex={-1} className="registration-closed-title">
             {copy.title}
           </h2>
           <p className="mt-3 text-sm text-text-secondary">{copy.body}</p>
           <p className="mt-2 text-sm text-text-secondary">
             Already registered? <Link className="underline" href="/login">Log in with your email or mobile</Link> to
-            open your status. For queries, contact E-Cell MET Team at met.iot.ecell@gmail.com.
+            open your status. For queries, contact E-Cell MET Team at <span className="registration-closed-contact">met.iot.ecell@gmail.com</span>.
           </p>
-          <div className="registration-actions mt-5 justify-center">
-            <Link href="/login" className="registration-primary-action">
+          <div className="registration-closed-actions">
+            <Link href="/login" className="registration-primary-action registration-closed-primary">
               Log in to your registration
             </Link>
-            <button type="button" className="registration-back" onClick={onClose}>
+            <button type="button" className="registration-closed-dismiss" onClick={onClose}>
               Close
             </button>
           </div>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }

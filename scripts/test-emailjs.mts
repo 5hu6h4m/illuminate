@@ -24,7 +24,7 @@ const mockConfig = {
   baseUrl: process.env.APP_BASE_URL?.trim() || "http://localhost:3000"
 };
 
-const missing = Object.entries(mockConfig).filter(([key, v]) => !v).map(([k]) => k);
+const missing = Object.entries(mockConfig).filter(([, v]) => !v).map(([k]) => k);
 if (missing.length > 0) {
   console.error("Missing EmailJS configuration:", missing.join(", "));
   process.exit(1);

@@ -68,6 +68,20 @@ test("closed dialog is accessible and routes existing holders to login", () => {
   assert.match(dialog, /\/login/);
 });
 
+test("closed dialog portals above the sticky header with centered actions", () => {
+  // The sticky landing header carries backdrop-filter, which traps fixed
+  // descendants — the dialog must portal to document.body to avoid clipping.
+  assert.match(dialog, /createPortal/);
+  assert.match(dialog, /document\.body/);
+  assert.match(dialog, /registration-closed-overlay/);
+  assert.match(dialog, /registration-closed-actions/);
+  assert.match(dialog, /registration-closed-dismiss/);
+  const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /\.registration-closed-overlay\s*\{[^}]*position:\s*fixed/);
+  assert.match(css, /\.registration-closed-overlay\s*\{[^}]*z-index:\s*200/);
+  assert.match(css, /\.registration-closed-actions\s*\{[^}]*justify-content:\s*center/);
+});
+
 test("register page shows a closed panel with a login path on direct visits", () => {
   assert.match(registerPage, /getEffectiveRegistrationAvailability/);
   assert.match(registerPage, /manuallyClosed/);
