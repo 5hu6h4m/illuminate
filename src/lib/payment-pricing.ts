@@ -8,6 +8,20 @@ export type RegistrationScheduleConfig = {
 
 export type PricingTier = "early_bird" | "regular";
 
+/**
+ * Participant/admin display label for a stored pricing tier. Raw stored
+ * values stay `early_bird` / `regular` (immutable snapshots); reopened
+ * registrations (raw `regular`) read as "Late Registration". Pure function —
+ * use this instead of duplicating tier strings across components.
+ */
+export type PricingTierDisplay = "Early Bird" | "Late Registration" | "Development preview";
+
+export function displayPricingTier(tier: PricingTier | "development_preview"): PricingTierDisplay {
+  if (tier === "early_bird") return "Early Bird";
+  if (tier === "regular") return "Late Registration";
+  return "Development preview";
+}
+
 export type ScheduledPricing = {
   registrationAvailable: boolean;
   tier: PricingTier | null;

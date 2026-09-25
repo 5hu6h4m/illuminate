@@ -15,6 +15,7 @@ export async function GET(request: Request) {
   const q = (url.searchParams.get("q") ?? "").trim().slice(0, 120);
   const status = url.searchParams.get("status");
   const scope = url.searchParams.get("scope");
+  const qr = url.searchParams.get("qr");
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1") || 1);
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? "30") || 30));
   const developmentE2EEnabled = isDevE2EPreviewEnabled();
@@ -22,6 +23,9 @@ export async function GET(request: Request) {
   if (status && statuses.has(status as PaymentStatus)) filter["payment.status"] = status;
   if (scope === "test" && developmentE2EEnabled) Object.assign(filter, developmentTestRegistrationFilter);
   if (scope === "real") Object.assign(filter, realRegistrationFilter);
+  // Server-side QR-issuance filter (counts stay consistent with pagination).
+  if (qr === "issued") filter["payment.destination.destinationId"] = { $exists: true };
+  else if (qr === "draft") filter["payment.destination.destinationId"] = { $exists: false };
   if (q) {
     const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     filter.$or = [{ publicId: { $regex: escaped, $options: "i" } }, { "participant.fullName": { $regex: escaped, $options: "i" } }, { "participant.email": { $regex: escaped, $options: "i" } }, { "participant.phone": { $regex: escaped, $options: "i" } }, { "payment.transactionReference": { $regex: escaped, $options: "i" } }];

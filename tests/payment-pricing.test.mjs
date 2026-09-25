@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveScheduledPricing, sumVerifiedSnapshotRevenue } from "../src/lib/payment-pricing.ts";
+import { displayPricingTier, resolveScheduledPricing, sumVerifiedSnapshotRevenue } from "../src/lib/payment-pricing.ts";
 
 const pricing = {
   openAt: "2026-09-15T00:00:00+05:30",
@@ -38,4 +38,20 @@ test("calculates verified revenue from immutable snapshots and excludes test rec
     { isTest: false, payment: { status: "submitted_for_verification", snapshot: { expectedAmount: 699 } } },
     { isTest: true, payment: { status: "verified", snapshot: { expectedAmount: 699 } } },
   ]), 1298);
+});
+
+test("display helper maps raw tiers without rewriting them", () => {
+  assert.equal(displayPricingTier("early_bird"), "Early Bird");
+  assert.equal(displayPricingTier("regular"), "Late Registration");
+  assert.equal(displayPricingTier("development_preview"), "Development preview");
+});
+
+test("raw regular tier stays regular while displaying Late Registration", () => {
+  const result = resolveScheduledPricing(pricing, new Date("2026-09-24T00:00:00+05:30"));
+  assert.equal(result.tier, "regular");
+  assert.equal(result.amount, 699);
+  assert.equal(displayPricingTier(result.tier), "Late Registration");
+  const early = resolveScheduledPricing(pricing, new Date("2026-09-15T00:00:00+05:30"));
+  assert.equal(early.tier, "early_bird");
+  assert.equal(displayPricingTier(early.tier), "Early Bird");
 });

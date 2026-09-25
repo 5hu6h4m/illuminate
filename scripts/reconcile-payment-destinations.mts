@@ -8,19 +8,19 @@
  * PAYMENT_CAPACITY_FULL. This script heals that drift safely.
  *
  * SAFETY (senior-security rules for a production counter reset):
- * - NEVER blindly zeroes. The proposed count for B/C/D/E is the number of
+ * - NEVER blindly zeroes. The proposed count for B/C/D/F/E is the number of
  *   live real registrations whose `payment.destination.destinationId`
  *   points at that account. Zero happens if and only if nothing live
  *   points there — which is exactly the "clear the assignment" outcome the
  *   operator wants when everything was deleted.
  * - Account A (disabled/legacy) is never touched.
  * - A proposed count below the live observed count is refused (would allow
- *   overbooking past 10 per UPI account).
+ *   overbooking past the account cap).
  * - Default mode is a read-only dry run. Writes require `--confirm` plus a
  *   `--reason` (10–500 chars, mirrors the admin-delete policy) and are
  *   recorded in `admin_audit` as `payment_destinations_reconciled`.
  * - Status healing preserves operator `disabled` decisions; only
- *   active/available/exhausted rotate on the B → C → D → E chain.
+ *   active/available/exhausted rotate on the B → C → F → E chain (D skipped: disabled).
  *
  * Usage:
  *   Dry run (read-only, safe to run anytime):

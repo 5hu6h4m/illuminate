@@ -2,7 +2,7 @@
 
 import type { Row } from "./types";
 import { Badge } from "./Badge";
-import { statusText } from "./types";
+import { paymentAccountLabel, paymentStageLabel, registrationTypeLabel, statusText } from "./types";
 import { getDisplayAmount } from "@/lib/ecell-pricing";
 
 type QueueTableProps = {
@@ -21,7 +21,7 @@ export function QueueTable({ rows, total, page, limit, refreshing, onPageChange,
   return (
     <div className="credential-frame mt-6">
       <div className="credential-frame__inner overflow-x-auto">
-        <table className="w-full min-w-[850px] text-left text-sm">
+        <table className="w-full min-w-[1150px] text-left text-sm">
           <caption className="sr-only">Current-generation registrations matching the active filters</caption>
           <thead className="sticky top-0 border-b border-white/10 bg-[#0a0a0a] text-xs text-text-secondary">
             <tr>
@@ -32,7 +32,16 @@ export function QueueTable({ rows, total, page, limit, refreshing, onPageChange,
                 Participant
               </th>
               <th scope="col" className="p-4">
+                Registration Type
+              </th>
+              <th scope="col" className="p-4">
                 Expected
+              </th>
+              <th scope="col" className="p-4">
+                Payment Stage
+              </th>
+              <th scope="col" className="p-4">
+                Payment Account
               </th>
               <th scope="col" className="p-4">
                 Transaction
@@ -70,12 +79,15 @@ export function QueueTable({ rows, total, page, limit, refreshing, onPageChange,
                     {row.participant.email} · {row.participant.phone}
                   </p>
                 </td>
+                <td className="p-4">{registrationTypeLabel(row.payment.snapshot.pricingTier)}</td>
                 <td className="p-4">{(() => {
                   if (row.isTest) return "₹XXX · TEST";
                   const display = getDisplayAmount(row.payment.snapshot.expectedAmount, row.ecellMember);
                   if (display === null) return "—";
                   return `₹${display}${row.ecellMember === true ? " · E-cell" : ""}`;
                 })()}</td>
+                <td className="p-4">{paymentStageLabel(row)}</td>
+                <td className="p-4">{paymentAccountLabel(row)}</td>
                 <td className="p-4 font-mono">{row.payment.transactionReference || "—"}</td>
                 <td className="p-4">
                   {row.payment.submittedAt ? new Date(row.payment.submittedAt).toLocaleString("en-IN") : "—"}
@@ -88,7 +100,7 @@ export function QueueTable({ rows, total, page, limit, refreshing, onPageChange,
             ))}
             {!rows.length && (
               <tr>
-                <td colSpan={6} className="p-12 text-center text-text-secondary">
+                <td colSpan={9} className="p-12 text-center text-text-secondary">
                   No matching current-generation registrations.
                 </td>
               </tr>

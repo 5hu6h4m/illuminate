@@ -3,10 +3,11 @@ import "server-only";
 import type { Collection, Document, Filter, FindOneAndUpdateOptions } from "mongodb";
 
 /**
- * Multi-UPI payment capacity system (10 slots standard per account).
+ * Multi-UPI payment capacity system.
  *
- * Four approved destinations (B → C → D → E): B/C/D hold 10 slots each,
- * E holds 20 (owner-approved extension), 50 total. Account A is permanently
+ * Five approved destinations in activation order: B (20) → C (20) →
+ * D skipped (disabled for new assignments; historical records preserved) →
+ * F Priyanka (10) → E Sneha (30). 90 total. Account A is permanently
  * disabled / legacy-only and must never be assigned to a new registration.
  *
  * Slot consumption rule: a slot is consumed at ASSIGNMENT time (when a new
@@ -53,12 +54,13 @@ export const APPROVED_DESTINATION_IDS_IN_SEQUENCE = [
   "account-b-shivam",
   "account-c-bhushan",
   "account-d-shubham",
+  "account-f-priyanka",
   "account-e-sneha",
 ] as const;
 
 export type ApprovedDestinationId = (typeof APPROVED_DESTINATION_IDS_IN_SEQUENCE)[number];
 
-/** Standard per-account slot cap. Account E is an owner-approved exception at 20 (see seeds). */
+/** Standard per-account slot cap. Owner-approved exceptions: B/C at 20, E at 30 (see seeds). */
 export const DESTINATION_SLOT_CAPACITY = 10;
 
 export const PAYMENT_CAPACITY_FULL_CODE = "PAYMENT_CAPACITY_FULL";
@@ -74,10 +76,10 @@ export const PAYMENT_CAPACITY_FULL_MESSAGE = "Illuminate registration capacity i
  * human admin review, so the check is a soft gate by design (no burst race
  * to defend against, unlike slot claims).
  */
-export const EVENT_VERIFIED_SEAT_LIMIT = 90;
+export const EVENT_VERIFIED_SEAT_LIMIT = 120;
 export const EVENT_REGISTRATION_FULL_CODE = "EVENT_REGISTRATION_FULL";
 export const EVENT_REGISTRATION_FULL_MESSAGE =
-  "Thank you so much for your interest in Illuminate 2026! All 90 seats have now been filled and registrations are closed. If you already registered, log in with your email or mobile to open your status. For queries, contact E-Cell MET Team at met.iot.ecell@gmail.com.";
+  "Thank you so much for your interest in Illuminate 2026! All 120 seats have now been filled and registrations are closed. If you already registered, log in with your email or mobile to open your status. For queries, contact E-Cell MET Team at met.iot.ecell@gmail.com.";
 
 /** Canonical seed definitions. Counts are set by the seed script, never here. */
 export const PAYMENT_DESTINATION_SEEDS: ReadonlyArray<{
@@ -108,7 +110,7 @@ export const PAYMENT_DESTINATION_SEEDS: ReadonlyArray<{
     payeeName: "Shivam Jadhav (ECELL Team)",
     upiId: "shivujadhav2006@okicici",
     sequence: 1,
-    capacity: 10,
+    capacity: 20,
     status: "active",
     ownerApproved: true,
     allowNewAssignments: true,
@@ -119,7 +121,7 @@ export const PAYMENT_DESTINATION_SEEDS: ReadonlyArray<{
     payeeName: "Bhushan Bhusare (ECELL Team)",
     upiId: "bbhusare73@oksbi",
     sequence: 2,
-    capacity: 10,
+    capacity: 20,
     status: "available",
     ownerApproved: true,
     allowNewAssignments: true,
@@ -131,6 +133,17 @@ export const PAYMENT_DESTINATION_SEEDS: ReadonlyArray<{
     upiId: "9834717038@ybl",
     sequence: 3,
     capacity: 10,
+    status: "disabled",
+    ownerApproved: true,
+    allowNewAssignments: false,
+  },
+  {
+    destinationId: "account-f-priyanka",
+    internalLabel: "Priyanka Ripote / Account F / E-Cell Payment",
+    payeeName: "Priyanka Ripote (Ecell Team)",
+    upiId: "9172140735@ybl",
+    sequence: 4,
+    capacity: 10,
     status: "available",
     ownerApproved: true,
     allowNewAssignments: true,
@@ -140,8 +153,8 @@ export const PAYMENT_DESTINATION_SEEDS: ReadonlyArray<{
     internalLabel: "Sneha Dagwar / Account E / E-Cell Payment 5",
     payeeName: "Sneha Dagwar (ECELL Team)",
     upiId: "snehadagwar06@okicici",
-    sequence: 4,
-    capacity: 20,
+    sequence: 5,
+    capacity: 30,
     status: "available",
     ownerApproved: true,
     allowNewAssignments: true,
@@ -163,6 +176,7 @@ export const LEGACY_UPI_TO_DESTINATION_ID: Record<string, string> = {
   "shivujadhav2006@okicici": "account-b-shivam",
   "bbhusare73@oksbi": "account-c-bhushan",
   "9834717038@ybl": "account-d-shubham",
+  "9172140735@ybl": "account-f-priyanka",
   "snehadagwar06@okicici": "account-e-sneha",
 };
 

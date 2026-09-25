@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Download, LogOut, X } from "lucide-react";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { CapacityPanel } from "@/components/admin/CapacityPanel";
+import { EventCapacityCard } from "@/components/admin/EventCapacityCard";
 import { RegistrationTogglePanel } from "@/components/admin/RegistrationTogglePanel";
 import { DeleteVerifiedDialog } from "@/components/admin/DeleteVerifiedDialog";
 import type { DeleteConfirmInput } from "@/components/admin/DeleteVerifiedDialog";
@@ -26,6 +27,7 @@ export default function AdminPage() {
     query,
     status,
     scope,
+    qr,
     page,
     limit,
     refreshing,
@@ -37,6 +39,7 @@ export default function AdminPage() {
     setQuery,
     setStatus,
     setScope,
+    setQr,
     setPage,
     clearNotice,
     login,
@@ -156,6 +159,7 @@ export default function AdminPage() {
         )}
         <MetricsBar data={data} activeStatus={status} onSelectStatus={(next) => setStatus(next)} />
         <RegistrationTogglePanel />
+        <EventCapacityCard />
         <CapacityPanel />
         <FilterBar
           query={query}
@@ -164,6 +168,8 @@ export default function AdminPage() {
           onStatusChange={setStatus}
           scope={scope}
           onScopeChange={setScope}
+          qr={qr}
+          onQrChange={setQr}
           total={data?.total ?? 0}
           refreshing={refreshing}
           onRefresh={() => void refresh()}

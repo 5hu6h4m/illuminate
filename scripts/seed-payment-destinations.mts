@@ -1,12 +1,15 @@
 /**
- * Idempotent seed for the STRICT 10-slot payment capacity system.
+ * Idempotent seed for the multi-UPI payment capacity system (V3 canonical).
  *
  * Seeds exactly:
- *   A disabled (capacity 0)
- *   B active (capacity 10)
- *   C available (capacity 10)
- *   D available (capacity 10)
- *   E available (capacity 10)
+ *   A disabled (capacity 0, never assignable)
+ *   B active (capacity 20)
+ *   C available (capacity 20)
+ *   D disabled (capacity 10, no new assignments; history preserved)
+ *   F Priyanka available (capacity 10, sequence 4)
+ *   E available (capacity 30, sequence 5)
+ *
+ * Activation order is effectively B → C → F → E (D skipped: disabled).
  *
  * Counts are NEVER blindly reset to zero: existing production
  * registrations with payment.destination are audited and assignedCount is
@@ -40,11 +43,18 @@ async function run() {
   const observedByDestination = new Map<string, number>();
   let legacyAccountACount = 0;
   let legacyUnknownCount = 0;
+  let draftCount = 0;
   const ambiguous: string[] = [];
-  for (const reg of existing as Array<{ publicId: string; payment?: { destination?: { destinationId?: string }; snapshot?: { upiId?: string }; status?: string } }>) {
+  for (const reg of existing as Array<{ publicId: string; payment?: { destination?: { destinationId?: string }; snapshot?: { upiId?: string }; status?: string; pendingQRGeneration?: boolean } }>) {
     const destId = reg.payment?.destination?.destinationId;
     if (destId) {
       observedByDestination.set(destId, (observedByDestination.get(destId) ?? 0) + 1);
+      continue;
+    }
+    // V3 drafts share the legacy no-destination shape but hold no slot and
+    // need no reassignment — count separately, never as legacy backlog.
+    if (reg.payment?.pendingQRGeneration === true) {
+      draftCount += 1;
       continue;
     }
     const upi = reg.payment?.snapshot?.upiId?.trim();
@@ -62,6 +72,15 @@ async function run() {
   }
 
   const now = new Date();
+  // V3 sequence migration: Sneha moves 4 → 5 to make room for Priyanka at 4.
+  // Counter-safe and snapshot-safe: only the ordering number moves — never
+  // assignedCount, status, approvals, capacities, or registration snapshots.
+  // Idempotent: matches only a Sneha doc still sitting on the old sequence.
+  const migrated = await destinations.updateOne(
+    { destinationId: "account-e-sneha", sequence: 4 },
+    { $set: { sequence: 5, updatedAt: now } },
+  );
+  if (migrated.modifiedCount) console.log("[seed] MIGRATE account-e-sneha sequence 4 → 5 (room for account-f-priyanka)");
   for (const seed of PAYMENT_DESTINATION_SEEDS) {
     const current = await destinations.findOne({ destinationId: seed.destinationId });
     const observed = observedByDestination.get(seed.destinationId) ?? 0;
@@ -94,10 +113,14 @@ async function run() {
       update.internalLabel = seed.internalLabel;
       update.sequence = seed.sequence;
     } else {
-      // Always refresh payee details (authoritative), never clobber status.
+      // Always refresh authoritative identity/ordering details (payee, UPI,
+      // label, sequence), never clobber status, capacity, or counts: capacity
+      // changes go through the expand script with owner approval, and status
+      // transitions (exhausted/disabled) belong to runtime/admin operations.
       update.payeeName = seed.payeeName;
       update.upiId = seed.upiId;
       update.internalLabel = seed.internalLabel;
+      update.sequence = seed.sequence;
     }
     // Auto-mark over-capacity docs exhausted (defensive; normal path marks on claim).
     if (nextCount >= (current.capacity ?? seed.capacity) && seed.destinationId !== "account-a-yash" && current.status === "active") {
@@ -109,7 +132,7 @@ async function run() {
     console.log(`[seed] KEEP ${seed.destinationId} status=${isFresh ? seed.status : current.status} assignedCount=${nextCount} (observed=${observed})`);
   }
 
-  // Ensure exactly one active destination when capacity remains (B → C → D → E).
+  // Ensure exactly one active destination when capacity remains (B → C → F → E; D skipped: disabled).
   const all = await destinations.find({}).sort({ sequence: 1 }).toArray();
   const approved = all.filter((d) => d.destinationId !== "account-a-yash");
   const hasActive = approved.some((d) => d.status === "active" && d.assignedCount < d.capacity);
@@ -124,6 +147,7 @@ async function run() {
 
   console.log(`[seed] production registrations scanned: ${existing.length}`);
   console.log(`[seed] observed destination counts: ${JSON.stringify(Object.fromEntries(observedByDestination))}`);
+  console.log(`[seed] V3 drafts without QR (no slot, no action): ${draftCount}`);
   console.log(`[seed] legacy Account A records: ${legacyAccountACount} (historical preserved, never auto-migrated)`);
   console.log(`[seed] unknown legacy records: ${legacyUnknownCount}`);
   if (ambiguous.length) {

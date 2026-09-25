@@ -137,10 +137,11 @@ export function CapacityPanel() {
       {data && (
         <>
           <p className="mt-2 text-sm text-text-secondary">
-            Total capacity: {data.totalCapacity} · Assigned: {data.assigned} / {data.totalCapacity} · Remaining: {data.remaining}
-            {data.capacityFull && <strong className="ml-2 text-red-200">FULL — new registrations return PAYMENT_CAPACITY_FULL</strong>}
+            Configured: {data.totalCapacity} · Assigned: {data.assigned} · Claimable: {data.claimableRemaining}
+            {data.capacityFull && <strong className="ml-2 text-red-200">FULL — new QR generation returns PAYMENT_CAPACITY_FULL</strong>}
           </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <p className="mt-1 text-xs text-text-secondary">Claimable counts only destinations eligible for future assignment (approved, allowing, active/available). Disabled and exhausted accounts never contribute.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
             {data.destinations.map((d) => (
               <div key={d.destinationId} className="rounded-xl border border-white/10 p-4 text-sm">
                 <p className="font-semibold">{destinationShortLabel(d.destinationId)}</p>
@@ -150,8 +151,15 @@ export function CapacityPanel() {
                   {d.status === "active" && "ACTIVE"}
                   {d.status === "available" && (d.sequence === Math.min(...data.destinations.filter((x) => x.status === "available").map((x) => x.sequence)) ? "NEXT" : "QUEUED")}
                   {d.status === "exhausted" && "EXHAUSTED"}
-                  {d.status === "disabled" && "DISABLED / LEGACY"}
+                  {d.status === "disabled" && d.destinationId === "account-d-shubham" && "DISABLED FOR NEW PAYMENTS"}
+                  {d.status === "disabled" && d.destinationId !== "account-d-shubham" && "DISABLED / LEGACY"}
                 </p>
+                {!d.claimable && d.status !== "disabled" && d.destinationId !== "account-a-yash" && (
+                  <p className="mt-1 text-xs text-text-secondary">Not claimable for new QR.</p>
+                )}
+                {d.destinationId === "account-d-shubham" && (
+                  <p className="mt-1 text-xs text-text-secondary">Historical D payments remain valid.</p>
+                )}
                 {(d.status === "active" || d.status === "available") && d.destinationId !== "account-a-yash" && (
                   <button type="button" className="mt-2 text-xs underline" disabled={working} onClick={() => void disableDestination(d.destinationId)}>Disable</button>
                 )}

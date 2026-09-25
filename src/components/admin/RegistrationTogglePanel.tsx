@@ -31,7 +31,7 @@ export function RegistrationTogglePanel() {
 
   const toggle = async (next: boolean) => {
     const confirmText = next
-      ? "Close registrations? Landing page will show Registration Closed with a popup. New signups stop; login keeps working."
+      ? "Close registrations? Landing page will show Registration Closed with a popup. New drafts and first QR generation stop; login keeps working."
       : "Re-open registrations? Landing page returns to date-based availability.";
     if (!window.confirm(confirmText)) return;
     setWorking(true);
@@ -68,11 +68,11 @@ export function RegistrationTogglePanel() {
       </div>
       <p className="mt-2 text-sm text-text-secondary">
         Status: {isClosed
-          ? <strong className="text-red-200">CLOSED — landing shows Closed popup, new signups blocked</strong>
+          ? <strong className="text-red-200">CLOSED — landing shows Closed popup, new drafts and first QR generation blocked</strong>
           : <strong className="text-emerald-200">OPEN — landing follows the date window</strong>}
       </p>
       <p className="mt-1 text-xs text-text-secondary">
-        Closing never blocks login, status pages, or payment proofs for already-registered participants.
+        Closing never blocks login, status pages, existing QR display, or payment proofs for already-registered participants.
       </p>
       {error && <p role="alert" className="registration-field__error mt-3">{error}</p>}
       {notice && <p role="status" className="mt-3 text-sm text-emerald-100">{notice}</p>}

@@ -35,7 +35,7 @@ export function canTransitionPayment(from: PaymentStatus, to: PaymentStatus): bo
  * LEGACY ONLY — Account A fallback for historical compatibility.
  * NEVER use for new payment assignment. New registrations must receive
  * their destination exclusively from the `payment_destinations` collection
- * (B → C → D → E). See `src/lib/payment-destinations.ts`.
+ * (B → C → F → E; D skipped: disabled for new assignments). See `src/lib/payment-destinations.ts`.
  */
 export const LEGACY_ACCOUNT_A_PAYEE = "Yash Patil";
 export const LEGACY_ACCOUNT_A_UPI = "yashpatil76317@okicici";

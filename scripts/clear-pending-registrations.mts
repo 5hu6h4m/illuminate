@@ -29,11 +29,13 @@ import { ObjectId } from "mongodb";
 import {
   closeMongoConnection,
   getDb,
+  getEventCapacityCollection,
   getPaymentDestinationsCollection,
   getPaymentProofBucket,
   isDbConfigured,
 } from "@/lib/mongodb";
 import { APPROVED_DESTINATION_IDS_IN_SEQUENCE, releaseDestinationSlot } from "@/lib/payment-destinations";
+import { releaseEventSeat } from "@/lib/event-capacity";
 import { realRegistrationFilter } from "@/lib/registration-filters";
 
 const APPROVED = [...APPROVED_DESTINATION_IDS_IN_SEQUENCE];
@@ -154,6 +156,27 @@ async function run() {
         console.warn(`[clear-pending] slot release failed for ${row.publicId}`, e instanceof Error ? e.message : e);
       }
     }
+    // V3 event-seat symmetry with the admin hard-delete route: a QR-issued
+    // pending held a seat commitment (destination attached) and releases one;
+    // a draft without a destination held nothing and releases zero. The
+    // decrement is conditional (committedCount > 0) and never underflows.
+    let seatReleased = false;
+    if (destId) {
+      try {
+        const eventCapacity = await getEventCapacityCollection();
+        seatReleased = (await releaseEventSeat(eventCapacity)).released;
+        if (seatReleased) {
+          await db.collection("admin_audit").insertOne({
+            type: "event_seat_released",
+            actor: "system",
+            at: new Date(),
+            metadata: { publicId: row.publicId, bulkOperation: BULK_TAG, reason: reason!.trim() },
+          });
+        }
+      } catch (e) {
+        console.warn(`[clear-pending] seat release failed for ${row.publicId}`, e instanceof Error ? e.message : e);
+      }
+    }
     await db.collection("admin_audit").insertOne({
       type: "admin_registration_deleted",
       actor: "admin",
@@ -171,6 +194,7 @@ async function run() {
         bulkOperation: BULK_TAG,
         destinationId: destId,
         destinationReleased: destReleased,
+        seatReleased,
       },
     });
     deleted += 1;
@@ -178,7 +202,7 @@ async function run() {
   }
 
   // Reconcile counters to post-delete live ground truth (same rule as the
-  // reconcile script: counter = live rows; statuses healed on B→C→D→E).
+  // reconcile script: counter = live rows; statuses healed on B→C→F→E, D skipped).
   const grouped = await registrations
     .aggregate<{ _id: string | null; count: number }>([
       { $match: realRegistrationFilter },

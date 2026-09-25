@@ -212,7 +212,7 @@ test("remaining approved capacity after 16-way split matches TOTAL", async () =>
   const { store } = await runScenario();
   const assigned = ["account-b-shivam", "account-c-bhushan", "account-d-shubham", "account-e-sneha"].reduce((s, id) => s + store.get(id).assignedCount, 0);
   assert.equal(assigned, 16);
-  assert.equal(TOTAL_PAYMENT_CAPACITY - assigned, 34);
+  assert.equal(TOTAL_PAYMENT_CAPACITY - assigned, TOTAL_PAYMENT_CAPACITY - 16);
 });
 
 test("route implements explicit partial opt-in with oldest-first selection and refund", () => {

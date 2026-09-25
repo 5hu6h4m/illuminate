@@ -100,18 +100,23 @@ test("creation API rejects with REGISTRATION_CLOSED but login flows stay ungated
   assert.ok(!wizard.includes("function RegistrationFullDialog"), "wizard must reuse the shared dialog, not a local copy");
 });
 
-test("manual-close gate resolves after replays and duplicates, before slot claim", () => {
+test("manual-close gate resolves after replays and duplicates, before draft insert", () => {
   // Existing holders resolve first: idempotent replay and identity
-  // duplicates come before the gate, the slot claim comes after — the same
+  // duplicates come before the gate, the draft insert comes after — the same
   // ordering the seat-cap gate follows, so in-flight holders never see 403.
+  // Creation claims no slot (V3 draft); the hard commitment lives in
+  // explicit Generate QR, which re-checks availability for first issuance.
   const replayIndex = createRoute.indexOf("existingRequest");
   const dupIndex = createRoute.indexOf("const duplicate = await findIdentityDuplicate()");
   const gateIndex = createRoute.indexOf("isRegistrationManuallyClosed()");
-  const claimIndex = createRoute.indexOf("await claimNextDestinationSlot");
-  assert.ok(replayIndex !== -1 && dupIndex !== -1 && gateIndex !== -1 && claimIndex !== -1);
+  // First insert at/after the gate: the dev-preview branch above inserts
+  // earlier and bypasses production gates by design.
+  const insertIndex = createRoute.indexOf("await collection.insertOne", gateIndex);
+  assert.ok(replayIndex !== -1 && dupIndex !== -1 && gateIndex !== -1 && insertIndex !== -1);
   assert.ok(replayIndex < gateIndex, "replay must resolve before the manual-close gate");
   assert.ok(dupIndex < gateIndex, "duplicates must resolve before the manual-close gate");
-  assert.ok(gateIndex < claimIndex, "manual-close gate must run before consuming a slot");
+  assert.ok(gateIndex < insertIndex, "manual-close gate must run before the draft insert");
+  assert.doesNotMatch(createRoute, /claimNextDestinationSlot/);
 });
 
 test("admin panel mounts a confirm-guarded open/close toggle", () => {

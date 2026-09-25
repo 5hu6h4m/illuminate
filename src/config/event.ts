@@ -46,8 +46,9 @@ export const event = {
   payment: {
     // LEGACY ONLY — Account A (Yash Patil / yashpatil76317@okicici) is
     // permanently disabled and must NEVER be used for new payment
-    // assignment. New registrations receive B → C → D → E destinations
-    // exclusively from the `payment_destinations` collection.
+    // assignment. New registrations receive B → C → F → E destinations
+    // (D skipped: disabled for new assignments) exclusively from the
+    // `payment_destinations` collection.
     // These fields remain only for historical snapshot compatibility.
     recipient: { value: "Yash Patil", confirmation: "confirmed" },
     upiId: { value: "yashpatil76317@okicici", confirmation: "confirmed" },

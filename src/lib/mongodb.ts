@@ -3,6 +3,7 @@ import "server-only";
 import { GridFSBucket, MongoClient, type Collection, type Db } from "mongodb";
 import type { RegistrationV2 } from "@/lib/registration-v2";
 import type { PaymentDestination } from "@/lib/payment-destinations";
+import type { EventCapacityDoc } from "@/lib/event-capacity";
 
 const uri = process.env.MONGODB_URI ?? "";
 const dbName = process.env.MONGODB_DB_NAME ?? process.env.MONGODB_DB ?? "illuminate";
@@ -70,6 +71,8 @@ export async function closeMongoConnection(): Promise<void> {
 }
 export async function getRegistrationsCollection(): Promise<Collection<RegistrationV2>> { return (await getDb()).collection<RegistrationV2>("registrations"); }
 export async function getPaymentDestinationsCollection(): Promise<Collection<PaymentDestination>> { return (await getDb()).collection<PaymentDestination>("payment_destinations"); }
+/** V3 event-seat commitment counter. Never auto-created by request handlers (fail closed when absent). */
+export async function getEventCapacityCollection(): Promise<Collection<EventCapacityDoc>> { return (await getDb()).collection<EventCapacityDoc>("event_capacity"); }
 export async function getPaymentProofBucket(): Promise<GridFSBucket> { return new GridFSBucket(await getDb(), { bucketName: "payment_proofs" }); }
 
 /** Idempotently creates payment_destinations indexes. */
@@ -93,7 +96,12 @@ export async function ensurePaymentIndexes(): Promise<void> {
     // Schema-v2 records intentionally do not carry those fields, so MongoDB
     // treats every v2 document as the same null key. Replace only the exact
     // known legacy indexes with partial equivalents; never touch other indexes.
-    const existingIndexes = await registrations.indexes();
+    // Fresh databases have no registrations namespace yet: treat that as an
+    // empty index list so the createIndex calls below bootstrap it instead
+    // of failing the very first registration.
+    const existingIndexes = await registrations.indexes().catch((error: unknown) =>
+      (error as { codeName?: string }).codeName === "NamespaceNotFound" ? [] : Promise.reject(error),
+    );
     const replaceUnsafeLegacyIndex = async (name: "id_1" | "email_1", field: "id" | "email") => {
       const index = existingIndexes.find((candidate) => candidate.name === name);
       if (!index || !index.unique || index.sparse || index.partialFilterExpression || JSON.stringify(index.key) !== JSON.stringify({ [field]: 1 })) return;

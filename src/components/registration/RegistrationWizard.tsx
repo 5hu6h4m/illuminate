@@ -32,7 +32,7 @@ const registrationCreationMessages: Record<string, string> = {
   REGISTRATION_WRITE_FAILED: "Could not create your registration (code DB-WRITE). Please retry.",
   PAYMENT_NOT_AVAILABLE: "Payment registration is not available yet. Please try again later.",
   PAYMENT_CAPACITY_FULL: "Illuminate registration capacity is currently full.",
-  EVENT_REGISTRATION_FULL: "Thank you so much for your interest in Illuminate 2026! All 90 seats have now been filled and registrations are closed. If you already registered, log in with your email or mobile to open your status. For queries, contact E-Cell MET Team at met.iot.ecell@gmail.com.",
+  EVENT_REGISTRATION_FULL: "Thank you so much for your interest in Illuminate 2026! All 120 seats have now been filled and registrations are closed. If you already registered, log in with your email or mobile to open your status. For queries, contact E-Cell MET Team at met.iot.ecell@gmail.com.",
   REGISTRATION_CLOSED: "Thank you so much for your interest in Illuminate 2026! New registrations are currently closed. If you already registered, log in with your email or mobile to open your status. For queries, contact E-Cell MET Team at met.iot.ecell@gmail.com.",
 };
 const DUPLICATE_CODES = new Set([
