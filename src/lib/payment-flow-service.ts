@@ -1,9 +1,10 @@
 import "server-only";
 
-import { ObjectId, type WithId } from "mongodb";
-import { TransactionReferenceSchema, type PublicStatus, type RegistrationV2 } from "@/lib/registration-v2";
-import { buildUpiUri, buildUpiUriForDestination, detectImageType, hashParticipantAccessToken, isDevE2EPreviewEnabled, isValidParticipantAccessToken, MAX_PAYMENT_PROOF_BYTES, normalizeTransactionReference } from "@/lib/payment";
-import { ACCOUNT_A_DESTINATION_ID, destinationIdForLegacyUpi } from "@/lib/payment-destinations";
+import { ObjectId, type Collection, type WithId } from "mongodb";
+import { TransactionReferenceSchema, type PaymentDestinationSnapshot, type PublicStatus, type RegistrationV2 } from "@/lib/registration-v2";
+import { buildUpiUri, buildUpiUriForDestination, detectImageType, hashParticipantAccessToken, isDevE2EPreviewEnabled, isValidParticipantAccessToken, MAX_PAYMENT_PROOF_BYTES, normalizeTransactionReference, type PaymentSnapshot } from "@/lib/payment";
+import { ACCOUNT_A_DESTINATION_ID, buildDestinationSnapshot, claimNextDestinationSlot, destinationIdForLegacyUpi, EVENT_REGISTRATION_FULL_CODE, EVENT_REGISTRATION_FULL_MESSAGE, PAYMENT_CAPACITY_FULL_CODE, PAYMENT_CAPACITY_FULL_MESSAGE, releaseDestinationSlot, type PaymentDestination } from "@/lib/payment-destinations";
+import { claimEventSeat, EVENT_CAPACITY_NOT_INITIALIZED_CODE, EVENT_CAPACITY_NOT_INITIALIZED_MESSAGE, type EventCapacityDoc } from "@/lib/event-capacity";
 import { ensurePaymentIndexes, getPaymentProofBucket, getRegistrationsCollection } from "@/lib/mongodb";
 import { developmentTestRegistrationFilter, realRegistrationFilter } from "@/lib/registration-filters";
 import { dispatchTransactionalEmail } from "@/lib/email/transactional-email";
@@ -24,20 +25,28 @@ export async function registrationForParticipantToken(token: string): Promise<Wi
 
 export type ResolvedDestination =
   | { kind: "assigned"; destinationId: string; internalLabel: string; payeeName: string; upiId: string }
+  | { kind: "draft" }
   | { kind: "legacy"; destinationId: string | null; payeeName: string; upiId: string }
   | { kind: "blocked_account_a_pending" }
   | { kind: "none" };
 
 /**
  * Resolver priority:
- * 1. payment.destination (authoritative for new registrations)
- * 2. legacy payment.snapshot payeeName/upiId
+ * 1. payment.destination (authoritative for QR-issued registrations)
+ * 2. V3 draft: payment_pending without a destination, created as a draft
+ *    (pendingQRGeneration marker) — eligible for explicit Generate QR.
+ * 3. legacy payment.snapshot payeeName/upiId (pre-V3 rows keep their exact
+ *    prior behavior: the marker distinguishes drafts from legacy rows, so
+ *    legacy Account A payment_pending records stay blocked).
  * BUT legacy Account A payment_pending records never expose the blocked QR.
  */
 export function resolveRegistrationDestination(registration: Pick<RegistrationV2, "payment">): ResolvedDestination {
   const assigned = registration.payment.destination;
   if (assigned?.destinationId && assigned.payeeName && assigned.upiId) {
     return { kind: "assigned", destinationId: assigned.destinationId, internalLabel: assigned.internalLabel, payeeName: assigned.payeeName, upiId: assigned.upiId };
+  }
+  if (registration.payment.status === "payment_pending" && registration.payment.pendingQRGeneration === true) {
+    return { kind: "draft" };
   }
   const snapshot = registration.payment.snapshot;
   const payeeName = snapshot.payeeName?.trim();
@@ -64,6 +73,7 @@ export async function getPublicStatusForParticipantToken(token: string): Promise
   const participantEmailMasked = emailDomain ? `${emailLocal.slice(0, 2)}${"•".repeat(Math.max(1, emailLocal.length - 2))}@${emailDomain}` : undefined;
   const resolved = resolveRegistrationDestination(registration);
   const blocked = resolved.kind === "blocked_account_a_pending";
+  const hasPaymentDestination = registration.payment.destination?.destinationId ? true : resolved.kind === "assigned";
   const destination =
     resolved.kind === "assigned"
       ? { destinationId: resolved.destinationId, internalLabel: resolved.internalLabel, payeeName: resolved.payeeName, upiId: resolved.upiId }
@@ -101,6 +111,9 @@ export async function getPublicStatusForParticipantToken(token: string): Promise
     verificationEmailStatus: registration.emailNotifications?.paymentVerified?.status === "sent" || registration.emailNotifications?.paymentVerified?.status === "failed" || registration.emailNotifications?.paymentVerified?.status === "suppressed" ? registration.emailNotifications.paymentVerified.status : "not_sent",
     paymentDestination: destination,
     requiresReassignment: blocked,
+    hasPaymentDestination,
+    qrClaimedAt: registration.payment.qrClaimedAt?.toISOString(),
+    canGeneratePaymentQr: awaitingPayment && !blocked && !hasPaymentDestination,
     paymentInstructions,
   };
 }
@@ -120,6 +133,12 @@ export async function submitPaymentProofForParticipant(input: {
   }
   if (isAccountAPendingBlocked(registration)) {
     throw new PaymentFlowError("PAYMENT_REASSIGNMENT_REQUIRED", "This registration needs to be reassigned to an approved payment account before payment. Please contact the organizer.");
+  }
+  // No orphan proofs: a QR must have been explicitly generated (destination
+  // attached) before any proof bytes reach GridFS. Verified/submitted
+  // history is unaffected — this gate only runs for pending/rejected states.
+  if (!registration.payment.destination?.destinationId) {
+    throw new PaymentFlowError("PAYMENT_QR_REQUIRED", "Generate your payment QR before submitting payment proof.");
   }
   const parsedReference = TransactionReferenceSchema.safeParse(input.transactionReference);
   if (!parsedReference.success) throw new PaymentFlowError("INVALID_TRANSACTION_REFERENCE", "Enter a valid UPI Transaction / Reference ID.");
@@ -264,4 +283,209 @@ export async function setEcellMemberFlag(input: { publicId: string; ecellMember:
     },
     { returnDocument: "after", projection: { participantAccessTokenHash: 0, idempotencyKeyHash: 0 } },
   );
+}
+
+/** Internal sentinel: the conditional attach lost a same-token race. Never surfaces to callers. */
+const QR_ATTACH_CONFLICT = "QR_ATTACH_CONFLICT";
+
+export type GenerateQRStore = {
+  registrations: Collection<RegistrationV2>;
+  destinations: Collection<PaymentDestination>;
+  eventCapacity: Collection<EventCapacityDoc>;
+};
+
+export type GenerateQRAvailability = {
+  /** Admin manual close state at request time. */
+  manuallyClosed: boolean;
+  /** Current schedule snapshot (null when date-closed). */
+  snapshot: PaymentSnapshot | null;
+};
+
+export type GenerateQRResult = {
+  registration: RegistrationV2;
+  destination: PaymentDestinationSnapshot;
+  /** Seat number after claim; null for idempotent replays (number unknown, unchanged). */
+  seatNumber: number | null;
+  /** Slot number after claim; null for idempotent replays. */
+  slotNumber: number | null;
+  qrClaimedAt: Date | null;
+  idempotent: boolean;
+  exhaustedDestinationId: string | null;
+  activatedDestinationId: string | null;
+};
+
+/**
+ * Explicit first-time QR issuance: exactly one event-seat commitment AND one
+ * payment-destination slot AND the registration attach. Strictly idempotent
+ * per token: once payment.destination exists, every later call returns it
+ * with zero increments (refresh, retry, two tabs, concurrent POSTs).
+ *
+ * Concurrency structure (burst-proven):
+ * - STEP 1 — destination slot is claimed OUTSIDE the transaction with a
+ *   real-time single conditional write. The activation chain (exhaust →
+ *   activate next) relies on current reads; inside snapshot-isolated
+ *   transactions those reads go stale under burst and spuriously report FULL.
+ * - STEP 2 — seat claim + conditional attach run INSIDE one transaction
+ *   (single conditional writes: committedCount < seatLimit, destination
+ *   $exists false). A transaction abort rolls the seat claim back, so seats
+ *   never leak; the outside slot is released by compensation on every abort
+ *   path below (idempotent early-return, seat FULL, attach conflict).
+ * Residual crash-window leaks (process death between the steps) are healed
+ * by counter reconciliation (counter = live rows), never by timers.
+ *
+ * Fail-closed: transactions are REQUIRED for STEP 2. No read-then-write
+ * fallback exists here — if the driver cannot run transactions, callers must
+ * surface 503. Availability (manual/date close) gates FIRST issuance only;
+ * already-issued QRs return idempotently regardless of close state.
+ */
+export async function generateFirstPaymentQR(input: {
+  token: string;
+  store: GenerateQRStore;
+  runTransaction: <T>(fn: (session: unknown) => Promise<T>) => Promise<T>;
+  availability: GenerateQRAvailability;
+  now?: Date;
+}): Promise<GenerateQRResult> {
+  const now = input.now ?? new Date();
+  if (!isValidParticipantAccessToken(input.token)) throw new PaymentFlowError("INVALID_STATUS_TOKEN", "Not found.");
+  const registration = await input.store.registrations.findOne({
+    schemaVersion: 2,
+    participantAccessTokenHash: hashParticipantAccessToken(input.token),
+  });
+  if (!registration) throw new PaymentFlowError("INVALID_STATUS_TOKEN", "Not found.");
+  if (registration.isTest ? !isDevE2EPreviewEnabled() : registration.payment.snapshot.mode !== "production") {
+    throw new PaymentFlowError("PAYMENT_NOT_AVAILABLE", "Payment QR generation is not available yet.");
+  }
+  const existing = registration.payment.destination;
+  if (existing?.destinationId) {
+    return {
+      registration,
+      destination: { ...existing, assignedAt: existing.assignedAt ?? now },
+      seatNumber: null,
+      slotNumber: null,
+      qrClaimedAt: registration.payment.qrClaimedAt ?? null,
+      idempotent: true,
+      exhaustedDestinationId: null,
+      activatedDestinationId: null,
+    };
+  }
+  if (registration.payment.status !== "payment_pending" && registration.payment.status !== "rejected") {
+    throw new PaymentFlowError("INVALID_STATE_TRANSITION", "This registration cannot generate a payment QR.");
+  }
+  if (isAccountAPendingBlocked(registration)) {
+    throw new PaymentFlowError("PAYMENT_REASSIGNMENT_REQUIRED", "This registration needs to be reassigned to an approved payment account before payment. Please contact the organizer.");
+  }
+  if (input.availability.manuallyClosed) {
+    throw new PaymentFlowError("REGISTRATION_CLOSED", "Registrations are closed. If you already registered, log in with your email or mobile to open your status.");
+  }
+  if (!input.availability.snapshot) {
+    throw new PaymentFlowError("PAYMENT_NOT_AVAILABLE", "Payment QR generation is not available yet.");
+  }
+  // STEP 1 — destination slot, OUTSIDE the transaction (burst-correct
+  // real-time conditional write; see the function contract above).
+  const slot = await claimNextDestinationSlot(input.store.destinations, { now });
+  if (!slot.ok) {
+    throw new PaymentFlowError(PAYMENT_CAPACITY_FULL_CODE, PAYMENT_CAPACITY_FULL_MESSAGE);
+  }
+  let slotCommitted = false;
+  try {
+    // STEP 2 — seat + attach, INSIDE one transaction.
+    const committed = await input.runTransaction(async (session) => {
+      const current = await input.store.registrations.findOne(
+        { _id: registration._id, schemaVersion: 2 },
+        { session: session as never },
+      );
+      if (!current) throw new PaymentFlowError("INVALID_STATUS_TOKEN", "Not found.");
+      const currentDestination = current.payment.destination;
+      if (currentDestination?.destinationId) {
+        // Lost a same-token race: the winner's destination is authoritative.
+        // Our STEP 1 slot is unused and released by the finally below.
+        return {
+          registration: current,
+          destination: { ...currentDestination, assignedAt: currentDestination.assignedAt ?? now },
+          seatNumber: null,
+          slotNumber: null,
+          qrClaimedAt: current.payment.qrClaimedAt ?? null,
+          idempotent: true,
+          exhaustedDestinationId: null,
+          activatedDestinationId: null,
+        };
+      }
+      if (current.payment.status !== "payment_pending" && current.payment.status !== "rejected") {
+        throw new PaymentFlowError("INVALID_STATE_TRANSITION", "This registration cannot generate a payment QR.");
+      }
+      const seat = await claimEventSeat(input.store.eventCapacity, { session, now });
+      if (!seat.ok) {
+        // Transaction abort rolls nothing back yet (no writes committed);
+        // our STEP 1 slot is released by the finally below.
+        throw new PaymentFlowError(
+          seat.reason === "not_initialized" ? EVENT_CAPACITY_NOT_INITIALIZED_CODE : EVENT_REGISTRATION_FULL_CODE,
+          seat.reason === "not_initialized" ? EVENT_CAPACITY_NOT_INITIALIZED_MESSAGE : EVENT_REGISTRATION_FULL_MESSAGE,
+        );
+      }
+      const snapshot = buildDestinationSnapshot(slot.destination, now);
+      const attached = await input.store.registrations.findOneAndUpdate(
+        {
+          _id: current._id,
+          schemaVersion: 2,
+          "payment.status": current.payment.status,
+          "payment.destination": { $exists: false },
+        },
+        {
+          $set: { "payment.destination": snapshot, "payment.qrClaimedAt": now, updatedAt: now },
+          $unset: { "payment.pendingQRGeneration": "" },
+          $push: {
+            audit: {
+              $each: [
+                { type: "payment_destination_assigned", actor: "participant", at: now, metadata: { destinationId: slot.destination.destinationId, sequence: slot.destination.sequence, capacity: slot.destination.capacity } },
+                { type: "event_seat_committed", actor: "participant", at: now, metadata: { seatNumber: seat.seatNumber, seatLimit: seat.doc.seatLimit } },
+              ],
+            },
+          },
+        },
+        { session: session as never, returnDocument: "after" },
+      );
+      if (!attached) throw new PaymentFlowError(QR_ATTACH_CONFLICT, "QR commitment race; retry.");
+      return {
+        registration: attached,
+        destination: snapshot,
+        seatNumber: seat.seatNumber,
+        slotNumber: slot.slotNumber,
+        qrClaimedAt: now,
+        idempotent: false,
+        exhaustedDestinationId: slot.exhausted?.destinationId ?? null,
+        activatedDestinationId: slot.activated?.destinationId ?? null,
+      };
+    });
+    slotCommitted = !committed.idempotent;
+    return committed;
+  } catch (error) {
+    if (error instanceof PaymentFlowError && error.code === QR_ATTACH_CONFLICT) {
+      // Transaction aborted: the seat claim rolled back and our STEP 1 slot
+      // is released by the finally below. Re-read: the race winner's
+      // destination is now authoritative.
+      const reread = await input.store.registrations.findOne({ _id: registration._id, schemaVersion: 2 });
+      const winner = reread?.payment.destination;
+      if (winner?.destinationId) {
+        return {
+          registration: reread as RegistrationV2,
+          destination: { ...winner, assignedAt: winner.assignedAt ?? now },
+          seatNumber: null,
+          slotNumber: null,
+          qrClaimedAt: reread?.payment.qrClaimedAt ?? null,
+          idempotent: true,
+          exhaustedDestinationId: null,
+          activatedDestinationId: null,
+        };
+      }
+      throw new PaymentFlowError("INVALID_STATE_TRANSITION", "This registration changed. Refresh and try again.");
+    }
+    throw error;
+  } finally {
+    if (!slotCommitted) {
+      // Compensate the unused STEP 1 claim (idempotent early-return, seat
+      // FULL, attach conflict, or any other abort). Never throws: a missed
+      // release is healed by counter reconciliation, never by timers.
+      await releaseDestinationSlot(input.store.destinations, slot.destination.destinationId).catch(() => undefined);
+    }
+  }
 }

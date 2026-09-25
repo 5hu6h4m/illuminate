@@ -15,6 +15,7 @@ export function useDashboard() {
   const [query, setQueryState] = useState("");
   const [status, setStatusState] = useState<"" | Status>("submitted_for_verification");
   const [scope, setScopeState] = useState<"" | "test" | "real">("");
+  const [qr, setQrState] = useState<"" | "draft" | "issued">("");
   const [page, setPageState] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
   const [authPending, setAuthPending] = useState(false);
@@ -33,13 +34,14 @@ export function useDashboard() {
     if (query) url.searchParams.set("q", query);
     if (status) url.searchParams.set("status", status);
     if (scope) url.searchParams.set("scope", scope);
+    if (qr) url.searchParams.set("qr", qr);
     url.searchParams.set("page", String(currentPage));
     url.searchParams.set("limit", String(ADMIN_PAGE_SIZE));
     const response = await fetch(url, { cache: "no-store" });
     const json = await response.json().catch(() => null);
     if (!response.ok) throw new Error(json?.error?.message || "Could not refresh registrations.");
     return json.data as Dashboard;
-  }, [currentPage, query, scope, status]);
+  }, [currentPage, query, scope, status, qr]);
 
   const refresh = useCallback(
     async (opts?: { silent?: boolean }): Promise<boolean> => {
@@ -74,6 +76,10 @@ export function useDashboard() {
   }, []);
   const setScope = useCallback((value: "" | "test" | "real") => {
     setScopeState(value);
+    setPageState(1);
+  }, []);
+  const setQr = useCallback((value: "" | "draft" | "issued") => {
+    setQrState(value);
     setPageState(1);
   }, []);
   const setPage = useCallback((value: number) => {
@@ -216,6 +222,7 @@ export function useDashboard() {
     query,
     status,
     scope,
+    qr,
     page: currentPage,
     limit: ADMIN_PAGE_SIZE,
     totalPages,
@@ -228,6 +235,7 @@ export function useDashboard() {
     setQuery,
     setStatus,
     setScope,
+    setQr,
     setPage,
     clearNotice,
     login,

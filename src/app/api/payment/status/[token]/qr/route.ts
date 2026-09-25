@@ -1,6 +1,7 @@
 import QRCode from "qrcode";
 import { buildUpiUri, buildUpiUriForDestination, isDevE2EPreviewEnabled, hashParticipantAccessToken, isValidParticipantAccessToken } from "@/lib/payment";
 import { getRegistrationsCollection, isDbConfigured } from "@/lib/mongodb";
+import { apiError } from "@/lib/http";
 import { resolveRegistrationDestination } from "@/lib/payment-flow-service";
 
 export const runtime = "nodejs";
@@ -10,6 +11,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ token: str
   const registration = await (await getRegistrationsCollection()).findOne({ schemaVersion: 2, participantAccessTokenHash: hashParticipantAccessToken(token), "payment.status": { $in: ["payment_pending", "rejected"] } });
   if (!registration || (registration.isTest ? !isDevE2EPreviewEnabled() : registration.payment.snapshot.mode !== "production")) return new Response("Not found", { status: 404 });
   const resolved = resolveRegistrationDestination(registration);
+  // PURE READ: this endpoint never assigns a destination. Drafts (no QR
+  // generated yet) get an explicit error; only POST Generate QR may claim.
+  if (resolved.kind === "draft") {
+    return apiError(409, "PAYMENT_QR_NOT_GENERATED", "Generate your payment QR before viewing it.");
+  }
   // Blocked Account A pending records never expose a QR again.
   if (resolved.kind === "blocked_account_a_pending" || resolved.kind === "none") return new Response("Not found", { status: 404 });
   const payload = registration.isTest

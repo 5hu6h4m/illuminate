@@ -1,8 +1,16 @@
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { apiError } from "@/lib/http";
 import { getDisplayAmount } from "@/lib/ecell-pricing";
+import { displayPricingTier, type PricingTier } from "@/lib/payment-pricing";
 import { getRegistrationsCollection } from "@/lib/mongodb";
 import { realRegistrationFilter } from "@/lib/registration-filters";
+
+function registrationTypeCell(tier: string | null | undefined): string {
+  if (tier === "early_bird" || tier === "regular" || tier === "development_preview") {
+    return displayPricingTier(tier as PricingTier | "development_preview");
+  }
+  return "";
+}
 
 function csvCell(value: unknown): string {
   let text = String(value ?? "");
@@ -21,8 +29,10 @@ export async function GET(request: Request) {
     // "E-cell Display Amount" preserves the remote admin display override
     // (getDisplayAmount) as a separately labelled column so it can never be
     // mistaken for the amount actually encoded in the participant's QR.
-    const header = internal ? ["Registration ID", "Name", "Email", "Phone Number", "College", "Branch", "Year", "Payment Status", "Pricing Tier", "Expected Amount", "E-cell Member", "E-cell Display Amount", "Transaction Reference", "Payment Destination ID", "Payment Destination Label", "Payment Payee", "Payment UPI ID", "Created At", "Submitted At", "Verified At"] : ["Name", "Email", "Phone Number"];
-    const rows = registrations.map((r) => internal ? [r.publicId, r.participant.fullName, r.participant.email, r.participant.phone, r.participant.college, r.participant.branch, r.participant.year, r.payment.status, r.payment.snapshot.pricingTier, r.payment.snapshot.expectedAmount, r.ecellMember === true ? "YES" : "NO", getDisplayAmount(r.payment.snapshot.expectedAmount, r.ecellMember), r.payment.transactionReference, r.payment.destination?.destinationId ?? "", r.payment.destination?.internalLabel ?? "", r.payment.destination?.payeeName ?? r.payment.snapshot.payeeName, r.payment.destination?.upiId ?? r.payment.snapshot.upiId, r.createdAt.toISOString(), r.payment.submittedAt?.toISOString(), r.payment.verifiedAt?.toISOString()] : [r.participant.fullName, r.participant.email, r.participant.phone]);
+    // "Pricing Tier" stays the raw immutable snapshot value for audit.
+    // "Registration Type" is its participant-facing display label.
+    const header = internal ? ["Registration ID", "Name", "Email", "Phone Number", "College", "Branch", "Year", "Payment Status", "Pricing Tier", "Registration Type", "Expected Amount", "E-cell Member", "E-cell Display Amount", "Transaction Reference", "Payment Destination ID", "Payment Destination Label", "Payment Payee", "Payment UPI ID", "Created At", "Submitted At", "Verified At"] : ["Name", "Email", "Phone Number"];
+    const rows = registrations.map((r) => internal ? [r.publicId, r.participant.fullName, r.participant.email, r.participant.phone, r.participant.college, r.participant.branch, r.participant.year, r.payment.status, r.payment.snapshot.pricingTier, registrationTypeCell(r.payment.snapshot.pricingTier), r.payment.snapshot.expectedAmount, r.ecellMember === true ? "YES" : "NO", getDisplayAmount(r.payment.snapshot.expectedAmount, r.ecellMember), r.payment.transactionReference, r.payment.destination?.destinationId ?? "", r.payment.destination?.internalLabel ?? "", r.payment.destination?.payeeName ?? r.payment.snapshot.payeeName, r.payment.destination?.upiId ?? r.payment.snapshot.upiId, r.createdAt.toISOString(), r.payment.submittedAt?.toISOString(), r.payment.verifiedAt?.toISOString()] : [r.participant.fullName, r.participant.email, r.participant.phone]);
     return new Response(asCsv([header, ...rows]), { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="illuminate-${internal ? "internal-payment" : "verified-participants"}.csv"`, "Cache-Control": "no-store, private", "X-Content-Type-Options": "nosniff" } });
   } catch { return apiError(503, "SERVER_ERROR", "Could not create export."); }
 }

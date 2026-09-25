@@ -6,7 +6,7 @@ import { CheckCircle2, Trash2, XCircle } from "lucide-react";
 import type { Row } from "./types";
 import { Badge } from "./Badge";
 import { getDisplayAmount, isEcellOverrideApplied } from "@/lib/ecell-pricing";
-import { destinationShortLabel } from "./types";
+import { destinationShortLabel, paymentStageLabel, registrationTypeLabel } from "./types";
 
 type ReviewModalProps = {
   row: Row;
@@ -90,16 +90,24 @@ export function ReviewModal({
           )}
           <dl className="mt-6 grid gap-3 sm:grid-cols-2">
             <div>
+              <dt className="text-xs text-text-secondary">Registration type</dt>
+              <dd className="font-semibold">{registrationTypeLabel(row.payment.snapshot.pricingTier)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-text-secondary">Payment stage</dt>
+              <dd className="font-semibold">{paymentStageLabel(row)}</dd>
+            </div>
+            <div>
               <dt className="text-xs text-text-secondary">Assigned Account</dt>
-              <dd className="font-semibold">{row.payment.destination?.destinationId ? destinationShortLabel(row.payment.destination.destinationId) : "Legacy (snapshot)"}</dd>
+              <dd className="font-semibold">{row.payment.destination?.destinationId ? destinationShortLabel(row.payment.destination.destinationId) : row.payment.status === "payment_pending" ? "Not assigned yet" : "Legacy payment record"}</dd>
             </div>
             <div>
               <dt className="text-xs text-text-secondary">Payee</dt>
-              <dd>{row.payment.destination?.payeeName ?? row.payment.snapshot.payeeName ?? "—"}</dd>
+              <dd>{row.payment.destination?.payeeName ?? (row.payment.status === "payment_pending" ? "Not assigned yet" : row.payment.snapshot.payeeName ?? "—")}</dd>
             </div>
             <div>
               <dt className="text-xs text-text-secondary">UPI</dt>
-              <dd className="break-all font-mono">{row.payment.destination?.upiId ?? row.payment.snapshot.upiId ?? "—"}</dd>
+              <dd className="break-all font-mono">{row.payment.destination?.upiId ?? (row.payment.status === "payment_pending" ? "—" : row.payment.snapshot.upiId ?? "—")}</dd>
             </div>
             <div>
               <dt className="text-xs text-text-secondary">Expected</dt>

@@ -90,7 +90,7 @@ export const ParticipantRecoveryRequestSchema = z.object({
 
 export type ParticipantRecoveryRequest = z.infer<typeof ParticipantRecoveryRequestSchema>;
 
-export type AuditEventType = "registration_created" | "payment_proof_submitted" | "payment_proof_resubmitted" | "payment_verified" | "payment_rejected" | "ecell_flag_changed" | "payment_destination_assigned" | "payment_destination_reassigned";
+export type AuditEventType = "registration_created" | "payment_proof_submitted" | "payment_proof_resubmitted" | "payment_verified" | "payment_rejected" | "ecell_flag_changed" | "payment_destination_assigned" | "payment_destination_reassigned" | "event_seat_committed";
 export type AuditEvent = { type: AuditEventType; actor: "participant" | "admin" | "system"; at: Date; metadata?: Record<string, string | number | boolean> };
 
 /**
@@ -98,7 +98,7 @@ export type AuditEvent = { type: AuditEventType; actor: "participant" | "admin" 
  * into `RegistrationV2["audit"]` — that record is hard-deleted with the
  * registration, while the `admin_audit` snapshot survives it).
  */
-export type AdminAuditEventType = "admin_login_success" | "admin_login_failed" | "admin_registration_deleted" | "admin_registration_deleted_verified" | "admin_ecell_flag_changed" | "admin_pending_registrations_cleared" | "event_registration_full" | "payment_destination_exhausted" | "payment_destination_activated" | "payment_destination_disabled" | "payment_destination_capacity_changed" | "payment_destination_released" | "payment_destinations_reconciled" | "payment_capacity_full" | "admin_payment_destination_reassigned";
+export type AdminAuditEventType = "admin_login_success" | "admin_login_failed" | "admin_registration_deleted" | "admin_registration_deleted_verified" | "admin_ecell_flag_changed" | "admin_pending_registrations_cleared" | "event_registration_full" | "event_seat_committed" | "event_seat_released" | "event_capacity_full" | "event_capacity_initialized" | "event_capacity_reconciled" | "v3_payment_capacity_migrated" | "v3_migration_rolled_back" | "payment_destination_exhausted" | "payment_destination_activated" | "payment_destination_disabled" | "payment_destination_capacity_changed" | "payment_destination_released" | "payment_destinations_reconciled" | "payment_capacity_full" | "admin_payment_destination_reassigned";
 export type AdminAuditEvent = { type: AdminAuditEventType; actor: "admin" | "system"; at: Date; metadata?: Record<string, string | number | boolean | string[] | null> };
 export type TransactionalEmailStatus = "pending" | "sending" | "sent" | "failed" | "suppressed";
 export type TransactionalEmailNotification = { status: TransactionalEmailStatus; eventKey: string; lastAttemptAt?: Date; sentAt?: Date; resendId?: string; errorCode?: string };
@@ -128,8 +128,18 @@ export type RegistrationV2 = {
   ecellMember?: boolean;
   payment: {
     snapshot: PaymentSnapshot;
-    /** Authoritative assigned payment destination for NEW registrations. */
+    /** Authoritative assigned payment destination. Absent until the participant explicitly generates a QR (V3 draft). */
     destination?: PaymentDestinationSnapshot;
+    /**
+     * V3 draft marker: true when the registration was created as a draft
+     * without a QR. Distinguishes drafts (eligible for explicit Generate QR)
+     * from legacy pre-V3 rows without a destination (Account A handling
+     * stays exactly as before). Removed ($unset) when the first QR is issued.
+     * Absent on all historical documents — treat as false.
+     */
+    pendingQRGeneration?: boolean;
+    /** When the first payment QR was explicitly generated. Absent until then. */
+    qrClaimedAt?: Date;
     status: PaymentStatus;
     transactionReference?: string;
     currentProofId?: string;
@@ -169,6 +179,12 @@ export type PublicStatus = {
   paymentDestination?: { destinationId: string; internalLabel: string; payeeName: string; upiId: string } | null;
   /** True when this legacy Account A pending record needs admin reassignment. */
   requiresReassignment?: boolean;
+  /** True when payment.destination is attached (a QR has been issued). Derivable, sent for UI convenience. */
+  hasPaymentDestination: boolean;
+  /** ISO instant the first QR was generated. Absent for drafts. */
+  qrClaimedAt?: string;
+  /** True when the participant may request first QR issuance (draft, actionable status, not blocked). */
+  canGeneratePaymentQr?: boolean;
   paymentInstructions?: { payeeName: string; upiId: string; upiUri?: string };
 };
 

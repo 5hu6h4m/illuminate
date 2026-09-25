@@ -12,6 +12,8 @@ type FilterBarProps = {
   onStatusChange: (status: "" | Status) => void;
   scope: "" | "test" | "real";
   onScopeChange: (scope: "" | "test" | "real") => void;
+  qr: "" | "draft" | "issued";
+  onQrChange: (qr: "" | "draft" | "issued") => void;
   total: number;
   refreshing: boolean;
   onRefresh: () => void;
@@ -24,6 +26,8 @@ export function FilterBar({
   onStatusChange,
   scope,
   onScopeChange,
+  qr,
+  onQrChange,
   total,
   refreshing,
   onRefresh,
@@ -87,6 +91,16 @@ export function FilterBar({
           <option value="">All visible records</option>
           <option value="test">TEST records</option>
           <option value="real">Real records</option>
+        </select>
+        <select
+          className="min-h-11 rounded-xl border border-white/15 bg-ink px-4"
+          aria-label="Filter by QR issuance"
+          value={qr}
+          onChange={(event) => onQrChange(event.target.value as "" | "draft" | "issued")}
+        >
+          <option value="">All QR states</option>
+          <option value="draft">Draft — QR not generated</option>
+          <option value="issued">QR generated</option>
         </select>
         <button className="registration-primary-action" disabled={refreshing}>
           <Search aria-hidden /> Search

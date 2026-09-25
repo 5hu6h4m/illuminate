@@ -2,7 +2,9 @@
  * Change a payment destination's capacity (e.g. owner-approved expansion).
  *
  * SAFETY:
- * - Only approved destinations (B/C/D/E) may change; Account A is refused.
+ * - Only approved destinations (B/C/D/F/E) may change; Account A is refused.
+ *   Disabled destinations (e.g. D) are refused: re-enable deliberately
+ *   before changing capacity.
  * - Shrinking below the live observed registration count is refused (would
  *   hide paid seats and allow overbooking past the new cap).
  * - Expansion requires --owner-approved (the account owner's consent to
@@ -11,7 +13,7 @@
  *   `payment_destination_capacity_changed`.
  * - A destination that gains room while exhausted reopens as `available`
  *   (or `active` when no other account with room is active), preserving the
- *   B → C → D → E activation chain. Nothing else about the account changes.
+ *   B → C → F → E activation chain (D skipped: disabled). Nothing else about the account changes.
  * - Default mode is a read-only dry run.
  *
  * Usage:

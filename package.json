@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:payment-policy": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/registration-duplicate-policy.test.mjs tests/payment-pricing.test.mjs tests/transactional-email.test.mjs tests/payment-core.test.mjs tests/payment-destinations.test.mjs tests/payment-reassignment-split.test.mjs tests/ecell-capacity-combined.test.mjs tests/registration-details.test.mjs tests/registration-continuation.test.mjs tests/participant-recovery.test.mjs tests/login-optional-id.brutal.test.mjs tests/load-100-concurrent.test.mjs tests/admin-delete.test.mjs tests/ecell-pricing.test.mjs tests/ecell-member.test.mjs",
-    "test:destinations": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/payment-destinations.test.mjs tests/payment-reassignment-split.test.mjs",
+    "test:payment-policy": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/registration-duplicate-policy.test.mjs tests/payment-pricing.test.mjs tests/transactional-email.test.mjs tests/payment-core.test.mjs tests/payment-destinations.test.mjs tests/payment-reassignment-split.test.mjs tests/ecell-capacity-combined.test.mjs tests/registration-details.test.mjs tests/registration-continuation.test.mjs tests/participant-recovery.test.mjs tests/login-optional-id.brutal.test.mjs tests/load-100-concurrent.test.mjs tests/admin-delete.test.mjs tests/ecell-pricing.test.mjs tests/ecell-member.test.mjs tests/payment-generate-qr.test.mjs tests/payment-ux-observability.test.mjs tests/migration-safety.test.mjs",
+    "test:destinations": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/payment-destinations.test.mjs tests/payment-reassignment-split.test.mjs tests/payment-generate-qr.test.mjs tests/payment-ux-observability.test.mjs tests/migration-safety.test.mjs",
     "test:capacity-integration": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/integration-capacity-test.mts",
     "seed:destinations": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/seed-payment-destinations.mts",
     "reconcile:destinations": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/reconcile-payment-destinations.mts --dry-run",
@@ -20,13 +20,14 @@
     "test:content": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/content-foundation.test.mjs",
     "test:font-loading": "node --test tests/font-loading.test.mjs",
     "test:emailjs": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/test-emailjs.mts",
-    "test": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/content-foundation.test.mjs tests/registration-duplicate-policy.test.mjs tests/payment-pricing.test.mjs tests/payment-core.test.mjs tests/payment-destinations.test.mjs tests/payment-reassignment-split.test.mjs tests/ecell-capacity-combined.test.mjs tests/registration-details.test.mjs tests/registration-continuation.test.mjs tests/hero-words.test.mjs tests/participant-recovery.test.mjs tests/login-optional-id.brutal.test.mjs tests/load-100-concurrent.test.mjs tests/admin-delete.test.mjs tests/ecell-pricing.test.mjs tests/ecell-member.test.mjs tests/registration-full-cap.test.mjs tests/registration-closed.test.mjs",
+    "test": "node --import ./scripts/register-dev-ts-loader.mjs --test tests/content-foundation.test.mjs tests/registration-duplicate-policy.test.mjs tests/payment-pricing.test.mjs tests/payment-core.test.mjs tests/payment-destinations.test.mjs tests/payment-reassignment-split.test.mjs tests/ecell-capacity-combined.test.mjs tests/registration-details.test.mjs tests/registration-continuation.test.mjs tests/hero-words.test.mjs tests/participant-recovery.test.mjs tests/login-optional-id.brutal.test.mjs tests/load-100-concurrent.test.mjs tests/admin-delete.test.mjs tests/ecell-pricing.test.mjs tests/ecell-member.test.mjs tests/registration-full-cap.test.mjs tests/registration-closed.test.mjs tests/payment-generate-qr.test.mjs tests/payment-ux-observability.test.mjs tests/migration-safety.test.mjs",
     "dev:test-payment-e2e": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/dev-test-payment-e2e.mts",
     "launch:check": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/launch-check.mts",
     "qa:production": "node scripts/qa-production.mjs",
     "qa:responsiveness": "node scripts/evaluate-responsiveness.mjs",
     "admin:hash-password": "node scripts/hash-admin-password.mjs",
-    "dev:clear-payment-tests": "node --env-file-if-exists=.env.local scripts/clear-development-payment-tests.mjs"
+    "dev:clear-payment-tests": "node --env-file-if-exists=.env.local scripts/clear-development-payment-tests.mjs",
+    "test:migration": "node --env-file-if-exists=.env.local --import ./scripts/register-dev-ts-loader.mjs scripts/migration-simulation.mts"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "5.3.0",

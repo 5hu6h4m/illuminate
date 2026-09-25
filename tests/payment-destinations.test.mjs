@@ -11,9 +11,11 @@ import {
   buildDestinationSnapshot,
   buildUpiUriFromDestination,
   claimNextDestinationSlot,
+  destinationIdForLegacyUpi,
   isAssignableDestination,
   releaseDestinationSlot,
 } from "../src/lib/payment-destinations.ts";
+import { destinationShortLabel } from "../src/components/admin/types.ts";
 import { buildUpiUriForDestination } from "../src/lib/payment.ts";
 import { resolveRegistrationDestination } from "../src/lib/payment-flow-service.ts";
 
@@ -27,10 +29,11 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
 function makeFakeDestinations(overrides = {}) {
   const base = [
     { _id: "id-a", destinationId: "account-a-yash", internalLabel: "Yash Account / Account A / E-Cell Payment 1", payeeName: "Yash Patil (ECELL Team)", upiId: "yashpatil76317@okicici", sequence: 0, capacity: 0, assignedCount: 0, status: "disabled", ownerApproved: false, allowNewAssignments: false },
-    { _id: "id-b", destinationId: "account-b-shivam", internalLabel: "Shivam Account / Account B / E-Cell Payment 2", payeeName: "Shivam Jadhav (ECELL Team)", upiId: "shivujadhav2006@okicici", sequence: 1, capacity: 10, assignedCount: 0, status: "active", ownerApproved: true, allowNewAssignments: true },
-    { _id: "id-c", destinationId: "account-c-bhushan", internalLabel: "Bhushan Bhusare / Account C / E-Cell Payment 3", payeeName: "Bhushan Bhusare (ECELL Team)", upiId: "bbhusare73@oksbi", sequence: 2, capacity: 10, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true },
-    { _id: "id-d", destinationId: "account-d-shubham", internalLabel: "Shubham Account / Account D / E-Cell Payment 4", payeeName: "Shubham Jadhav (ECELL Team)", upiId: "9834717038@ybl", sequence: 3, capacity: 10, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true },
-    { _id: "id-e", destinationId: "account-e-sneha", internalLabel: "Sneha Dagwar / Account E / E-Cell Payment 5", payeeName: "Sneha Dagwar (ECELL Team)", upiId: "snehadagwar06@okicici", sequence: 4, capacity: 20, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true },
+    { _id: "id-b", destinationId: "account-b-shivam", internalLabel: "Shivam Account / Account B / E-Cell Payment 2", payeeName: "Shivam Jadhav (ECELL Team)", upiId: "shivujadhav2006@okicici", sequence: 1, capacity: 20, assignedCount: 0, status: "active", ownerApproved: true, allowNewAssignments: true },
+    { _id: "id-c", destinationId: "account-c-bhushan", internalLabel: "Bhushan Bhusare / Account C / E-Cell Payment 3", payeeName: "Bhushan Bhusare (ECELL Team)", upiId: "bbhusare73@oksbi", sequence: 2, capacity: 20, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true },
+    { _id: "id-d", destinationId: "account-d-shubham", internalLabel: "Shubham Account / Account D / E-Cell Payment 4", payeeName: "Shubham Jadhav (ECELL Team)", upiId: "9834717038@ybl", sequence: 3, capacity: 10, assignedCount: 0, status: "disabled", ownerApproved: true, allowNewAssignments: false },
+    { _id: "id-f", destinationId: "account-f-priyanka", internalLabel: "Priyanka Ripote / Account F / E-Cell Payment", payeeName: "Priyanka Ripote (Ecell Team)", upiId: "9172140735@ybl", sequence: 4, capacity: 10, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true },
+    { _id: "id-e", destinationId: "account-e-sneha", internalLabel: "Sneha Dagwar / Account E / E-Cell Payment 5", payeeName: "Sneha Dagwar (ECELL Team)", upiId: "snehadagwar06@okicici", sequence: 5, capacity: 30, assignedCount: 0, status: "available", ownerApproved: true, allowNewAssignments: true },
   ];
   const docs = new Map();
   for (const d of base) {
@@ -135,36 +138,36 @@ test("2. first registration gets B", async () => {
   assert.equal(claim.snapshot.upiId, "shivujadhav2006@okicici");
 });
 
-// 3. B registrations 1-10 all get B
-test("3. B registrations 1-10 all get B", async () => {
+// 3. B registrations 1-20 all get B
+test("3. B registrations 1-20 all get B", async () => {
   const col = makeFakeDestinations();
-  const results = await claimN(col, 10);
+  const results = await claimN(col, 20);
   assert.ok(results.every((r) => r.ok && r.destination.destinationId === "account-b-shivam"));
-  assert.deepEqual(results.map((r) => r.slotNumber), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.deepEqual(results.map((r) => r.slotNumber), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
 });
 
-// 4. 11th registration gets C
-test("4. 11th registration gets C", async () => {
+// 4. 21st registration gets C
+test("4. 21st registration gets C", async () => {
   const col = makeFakeDestinations();
-  await claimN(col, 10);
-  const eleventh = await claimNextDestinationSlot(col);
-  assert.equal(eleventh.ok, true);
-  assert.equal(eleventh.destination.destinationId, "account-c-bhushan");
-  assert.equal(eleventh.slotNumber, 1);
+  await claimN(col, 20);
+  const twentyFirst = await claimNextDestinationSlot(col);
+  assert.equal(twentyFirst.ok, true);
+  assert.equal(twentyFirst.destination.destinationId, "account-c-bhushan");
+  assert.equal(twentyFirst.slotNumber, 1);
 });
 
-// 5. B becomes exhausted at exactly 10
-test("5. B becomes exhausted at exactly 10", async () => {
+// 5. B becomes exhausted at exactly 20
+test("5. B becomes exhausted at exactly 20", async () => {
   const col = makeFakeDestinations();
-  await claimN(col, 9);
+  await claimN(col, 19);
   assert.equal(col.get("account-b-shivam").status, "active");
-  const tenth = await claimNextDestinationSlot(col);
-  assert.equal(tenth.ok, true);
-  assert.equal(tenth.destination.destinationId, "account-b-shivam");
-  assert.equal(tenth.exhausted?.destinationId, "account-b-shivam");
+  const twentieth = await claimNextDestinationSlot(col);
+  assert.equal(twentieth.ok, true);
+  assert.equal(twentieth.destination.destinationId, "account-b-shivam");
+  assert.equal(twentieth.exhausted?.destinationId, "account-b-shivam");
   const stored = col.get("account-b-shivam");
   assert.equal(stored.status, "exhausted");
-  assert.equal(stored.assignedCount, 10);
+  assert.equal(stored.assignedCount, 20);
   assert.equal(stored.allowNewAssignments, false);
   assert.ok(stored.exhaustedAt instanceof Date);
 });
@@ -172,58 +175,64 @@ test("5. B becomes exhausted at exactly 10", async () => {
 // 6. C becomes active
 test("6. C becomes active after B exhausts", async () => {
   const col = makeFakeDestinations();
-  await claimN(col, 10);
+  await claimN(col, 20);
   assert.equal(col.get("account-c-bhushan").status, "active");
   assert.ok(col.get("account-c-bhushan").activatedAt instanceof Date);
 });
 
-// 7. after C 10 → D
-test("7. after C 10 → D", async () => {
+// 7. after C 20 → F (D skipped: disabled for new assignments)
+test("7. after C 20 → F (D skipped)", async () => {
   const col = makeFakeDestinations();
-  await claimN(col, 20);
+  await claimN(col, 40);
   const next = await claimNextDestinationSlot(col);
   assert.equal(next.ok, true);
-  assert.equal(next.destination.destinationId, "account-d-shubham");
+  assert.equal(next.destination.destinationId, "account-f-priyanka");
   assert.equal(col.get("account-c-bhushan").status, "exhausted");
-  assert.equal(col.get("account-d-shubham").status, "active");
+  assert.equal(col.get("account-d-shubham").status, "disabled");
+  assert.equal(col.get("account-d-shubham").assignedCount, 0);
+  assert.equal(col.get("account-f-priyanka").status, "active");
 });
 
-// 8. after D 10 → E
-test("8. after D 10 → E", async () => {
+// 8. after F 10 → E
+test("8. after F 10 → E", async () => {
   const col = makeFakeDestinations();
-  await claimN(col, 30);
+  await claimN(col, 50);
   const next = await claimNextDestinationSlot(col);
   assert.equal(next.ok, true);
   assert.equal(next.destination.destinationId, "account-e-sneha");
-  assert.equal(col.get("account-d-shubham").status, "exhausted");
+  assert.equal(col.get("account-f-priyanka").status, "exhausted");
   assert.equal(col.get("account-e-sneha").status, "active");
 });
 
-// 9. after E 20 → PAYMENT_CAPACITY_FULL
-test("9. after E 20 → PAYMENT_CAPACITY_FULL", async () => {
+// 9. after E 30 → PAYMENT_CAPACITY_FULL (80 usable: D is disabled, never claimed)
+test("9. after E 30 → PAYMENT_CAPACITY_FULL", async () => {
   const col = makeFakeDestinations();
-  await claimN(col, 50);
+  await claimN(col, 80);
   const full = await claimNextDestinationSlot(col);
   assert.equal(full.ok, false);
   assert.equal(full.capacityFull, true);
   assert.equal(PAYMENT_CAPACITY_FULL_CODE, "PAYMENT_CAPACITY_FULL");
 });
 
-// 10. max total approved assignment count = 50 (B/C/D 10 each, E 20)
-test("10. max total approved assignment count = 50", () => {
-  assert.equal(TOTAL_PAYMENT_CAPACITY, 50);
+// 10. max total approved assignment count = 90 (B 20 + C 20 + D 10 + F 10 + E 30)
+test("10. max total approved assignment count = 90", () => {
+  assert.equal(TOTAL_PAYMENT_CAPACITY, 90);
   assert.equal(DESTINATION_SLOT_CAPACITY, 10);
   const approved = PAYMENT_DESTINATION_SEEDS.filter((s) => s.destinationId !== ACCOUNT_A_DESTINATION_ID);
-  assert.equal(approved.length, 4);
-  assert.equal(approved.reduce((sum, s) => sum + s.capacity, 0), 50);
-  assert.equal(approved.find((s) => s.destinationId === "account-e-sneha")?.capacity, 20);
-  assert.deepEqual([...APPROVED_DESTINATION_IDS_IN_SEQUENCE], ["account-b-shivam", "account-c-bhushan", "account-d-shubham", "account-e-sneha"]);
+  assert.equal(approved.length, 5);
+  assert.equal(approved.reduce((sum, s) => sum + s.capacity, 0), 90);
+  assert.equal(approved.find((s) => s.destinationId === "account-b-shivam")?.capacity, 20);
+  assert.equal(approved.find((s) => s.destinationId === "account-c-bhushan")?.capacity, 20);
+  assert.equal(approved.find((s) => s.destinationId === "account-d-shubham")?.capacity, 10);
+  assert.equal(approved.find((s) => s.destinationId === "account-f-priyanka")?.capacity, 10);
+  assert.equal(approved.find((s) => s.destinationId === "account-e-sneha")?.capacity, 30);
+  assert.deepEqual([...APPROVED_DESTINATION_IDS_IN_SEQUENCE], ["account-b-shivam", "account-c-bhushan", "account-d-shubham", "account-f-priyanka", "account-e-sneha"]);
 });
 
 // 11. Account A never assigned
 test("11. Account A never assigned", async () => {
   const col = makeFakeDestinations();
-  const results = await claimN(col, 50);
+  const results = await claimN(col, 80);
   assert.ok(results.every((r) => r.ok && r.destination.destinationId !== ACCOUNT_A_DESTINATION_ID));
   assert.equal(isAssignableDestination({ destinationId: "account-a-yash", status: "disabled", ownerApproved: false, allowNewAssignments: false, assignedCount: 0, capacity: 0 }), false);
   assert.equal(isAssignableDestination({ destinationId: "account-a-yash", status: "active", ownerApproved: true, allowNewAssignments: true, assignedCount: 0, capacity: 10 }), false);
@@ -243,84 +252,90 @@ test("12. Account A QR never appears for new registration", async () => {
   assert.match(route, /buildUpiUriForDestination/);
 });
 
-// 13. disabled destination skipped
+// 13. disabled destination skipped (C disabled → D disabled skipped → F)
 test("13. disabled destination skipped", async () => {
   const col = makeFakeDestinations({ "account-c-bhushan": { status: "disabled", allowNewAssignments: false, disabledAt: new Date() } });
-  await claimN(col, 10); // exhaust B
+  await claimN(col, 20); // exhaust B
   const next = await claimNextDestinationSlot(col);
   assert.equal(next.ok, true);
-  assert.equal(next.destination.destinationId, "account-d-shubham");
+  assert.equal(next.destination.destinationId, "account-f-priyanka");
 });
 
 // 14. ownerApproved false never assignable
 test("14. ownerApproved false never assignable", async () => {
-  assert.equal(isAssignableDestination({ destinationId: "account-c-bhushan", status: "active", ownerApproved: false, allowNewAssignments: true, assignedCount: 0, capacity: 10 }), false);
+  assert.equal(isAssignableDestination({ destinationId: "account-c-bhushan", status: "active", ownerApproved: false, allowNewAssignments: true, assignedCount: 0, capacity: 20 }), false);
   const col = makeFakeDestinations({ "account-c-bhushan": { status: "active", ownerApproved: false } });
-  // B still active so first claim is B; force B full then ensure C (unapproved) is skipped to D.
-  await claimN(col, 10);
+  // B still active so first claim is B; force B full then ensure C (unapproved)
+  // and D (disabled) are both skipped to F.
+  await claimN(col, 20);
   const next = await claimNextDestinationSlot(col);
   assert.equal(next.ok, true);
-  assert.equal(next.destination.destinationId, "account-d-shubham");
+  assert.equal(next.destination.destinationId, "account-f-priyanka");
 });
 
-// 15. concurrent registrations cannot create B slot 11
-test("15. concurrent registrations cannot create B slot 11", async () => {
-  const col = makeFakeDestinations({ "account-b-shivam": { assignedCount: 9, status: "active" } });
+// 15. concurrent registrations cannot create B slot 21
+test("15. concurrent registrations cannot create B slot 21", async () => {
+  const col = makeFakeDestinations({ "account-b-shivam": { assignedCount: 19, status: "active" } });
   const results = await Promise.all(Array.from({ length: 10 }, () => claimNextDestinationSlot(col)));
   const bSlots = results.filter((r) => r.ok && r.destination.destinationId === "account-b-shivam").map((r) => r.slotNumber);
   assert.equal(bSlots.length, 1);
-  assert.equal(bSlots[0], 10);
-  assert.equal(col.get("account-b-shivam").assignedCount, 10);
-  assert.ok(col.get("account-b-shivam").assignedCount <= 10);
+  assert.equal(bSlots[0], 20);
+  assert.equal(col.get("account-b-shivam").assignedCount, 20);
+  assert.ok(col.get("account-b-shivam").assignedCount <= 20);
   const cClaims = results.filter((r) => r.ok && r.destination.destinationId === "account-c-bhushan");
   assert.equal(cClaims.length, 9);
 });
 
-// 16. idempotent retry does not consume second slot
-test("16. idempotent retry does not consume second slot", async () => {
-  // Route-level guarantee: replay check runs BEFORE claim. Assert source order
-  // and simulate: claim once, replay returns without second claim.
+// 16. creation is draft-only: replay resolves before insert, no slot claim
+test("16. creation is draft-only: replay resolves before insert, no slot claim", async () => {
+  // V3: creation inserts a draft (no destination, no slot, no seat). The
+  // only claim lives in explicit Generate QR (payment-flow-service).
   const route = readFileSync(new URL("../src/app/api/payment/registrations/route.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(route, /claimNextDestinationSlot/);
+  assert.doesNotMatch(route, /releaseDestinationSlot/);
+  assert.match(route, /pendingQRGeneration/);
   const replayIndex = route.indexOf("existingRequest");
-  const claimIndex = route.indexOf("await claimNextDestinationSlot");
-  assert.ok(replayIndex !== -1 && claimIndex !== -1 && replayIndex < claimIndex);
-  assert.match(route, /Idempotent replay must NOT consume another payment slot/);
-  const col = makeFakeDestinations();
-  const first = await claimNextDestinationSlot(col);
-  assert.equal(first.slotNumber, 1);
-  // Replay: no second claim issued → count stays 1.
-  assert.equal(col.get("account-b-shivam").assignedCount, 1);
-});
-
-// 17. duplicate registration does not consume slot
-test("17. duplicate registration does not consume slot", async () => {
-  const route = readFileSync(new URL("../src/app/api/payment/registrations/route.ts", import.meta.url), "utf8");
-  assert.match(route, /Rejected duplicate attempts must NOT consume capacity/);
+  const insertIndex = route.indexOf("await collection.insertOne");
+  assert.ok(replayIndex !== -1 && insertIndex !== -1 && replayIndex < insertIndex);
   const dupIndex = route.indexOf("const duplicate = await findIdentityDuplicate()");
-  const claimIndex = route.indexOf("await claimNextDestinationSlot");
-  assert.ok(dupIndex !== -1 && claimIndex !== -1);
-  // First duplicate check precedes first claim.
-  assert.ok(dupIndex < claimIndex);
-  const col = makeFakeDestinations();
-  assert.equal(col.get("account-b-shivam").assignedCount, 0);
+  assert.ok(dupIndex !== -1 && dupIndex < insertIndex);
+  const service = readFileSync(new URL("../src/lib/payment-flow-service.ts", import.meta.url), "utf8");
+  assert.match(service, /generateFirstPaymentQR/);
+  assert.match(service, /await claimEventSeat/);
+  assert.match(service, /await claimNextDestinationSlot/);
 });
 
-// 18. failed DB registration does not leak slot
-test("18. failed DB registration does not leak slot", async () => {
+// 17. duplicate registration creates nothing
+test("17. duplicate registration creates nothing", () => {
+  const route = readFileSync(new URL("../src/app/api/payment/registrations/route.ts", import.meta.url), "utf8");
+  assert.match(route, /Rejected duplicate attempts create nothing/);
+  const dupIndex = route.indexOf("const duplicate = await findIdentityDuplicate()");
+  const insertIndex = route.indexOf("await collection.insertOne");
+  assert.ok(dupIndex !== -1 && insertIndex !== -1);
+  // Duplicate check precedes the draft insert.
+  assert.ok(dupIndex < insertIndex);
+  assert.doesNotMatch(route, /claimNextDestinationSlot/);
+});
+
+// 18. release primitive refunds a slot; draft creation needs no compensation
+test("18. release primitive refunds a slot; draft creation needs no compensation", async () => {
   const col = makeFakeDestinations();
   const claim = await claimNextDestinationSlot(col);
   assert.equal(col.get("account-b-shivam").assignedCount, 1);
   await releaseDestinationSlot(col, claim.destination.destinationId);
   assert.equal(col.get("account-b-shivam").assignedCount, 0);
+  // V3 creation claims nothing, so the creation route carries no release path.
   const route = readFileSync(new URL("../src/app/api/payment/registrations/route.ts", import.meta.url), "utf8");
-  assert.match(route, /releaseDestinationSlot/);
-  assert.match(route, /DB failure must not leak capacity/);
+  assert.doesNotMatch(route, /claimNextDestinationSlot/);
+  assert.doesNotMatch(route, /releaseDestinationSlot/);
 });
 
 // 19. verified registration keeps destination
 test("19. verified registration keeps destination", () => {
   const service = readFileSync(new URL("../src/lib/payment-flow-service.ts", import.meta.url), "utf8");
-  const verifyBlock = service.slice(service.indexOf("export async function verifyPaymentForReview"));
+  const start = service.indexOf("export async function verifyPaymentForReview");
+  const end = service.indexOf("\nexport ", start + 1);
+  const verifyBlock = service.slice(start, end === -1 ? undefined : end);
   assert.doesNotMatch(verifyBlock, /payment\.destination/);
   assert.doesNotMatch(verifyBlock, /destination/);
 });
@@ -328,7 +343,9 @@ test("19. verified registration keeps destination", () => {
 // 20. submitted registration keeps destination
 test("20. submitted registration keeps destination (proof does not rewrite it)", () => {
   const service = readFileSync(new URL("../src/lib/payment-flow-service.ts", import.meta.url), "utf8");
-  const submitBlock = service.slice(service.indexOf("export async function submitPaymentProofForParticipant"));
+  const start = service.indexOf("export async function submitPaymentProofForParticipant");
+  const end = service.indexOf("\nexport ", start + 1);
+  const submitBlock = service.slice(start, end === -1 ? undefined : end);
   // Proof submission snapshots the destination into proofHistory but never
   // overwrites payment.destination.
   assert.match(submitBlock, /proofHistory/);
@@ -339,7 +356,9 @@ test("20. submitted registration keeps destination (proof does not rewrite it)",
 // 21. rejected does not free slot
 test("21. rejected does not free slot", () => {
   const service = readFileSync(new URL("../src/lib/payment-flow-service.ts", import.meta.url), "utf8");
-  const rejectBlock = service.slice(service.indexOf("export async function rejectPaymentForReview"));
+  const start = service.indexOf("export async function rejectPaymentForReview");
+  const end = service.indexOf("\nexport ", start + 1);
+  const rejectBlock = service.slice(start, end === -1 ? undefined : end);
   assert.match(rejectBlock, /NEVER free the destination slot/);
   assert.doesNotMatch(rejectBlock, /releaseDestinationSlot/);
   assert.doesNotMatch(rejectBlock, /assignedCount/);
@@ -374,30 +393,40 @@ test("24. reassignment cannot exceed target remaining capacity", () => {
 // 25. exhausted slot is never recycled
 test("25. exhausted slot is never recycled", async () => {
   const col = makeFakeDestinations();
-  await claimN(col, 50);
+  await claimN(col, 80);
   assert.equal(col.get("account-b-shivam").status, "exhausted");
   assert.equal(col.get("account-c-bhushan").status, "exhausted");
-  assert.equal(col.get("account-d-shubham").status, "exhausted");
+  // D stays disabled (never activated, never exhausted) with zero assignments.
+  assert.equal(col.get("account-d-shubham").status, "disabled");
+  assert.equal(col.get("account-d-shubham").assignedCount, 0);
+  assert.equal(col.get("account-f-priyanka").status, "exhausted");
   assert.equal(col.get("account-e-sneha").status, "exhausted");
   const full = await claimNextDestinationSlot(col);
   assert.equal(full.capacityFull, true);
-  // Exhausted destinations reactivate only via the two sanctioned releases:
-  // failed-write compensation and admin hard-delete (both call
-  // releaseDestinationSlot); never on reject/verify transitions.
+  // Slots are released only via the sanctioned path: admin hard-delete after
+  // findOneAndDelete. Draft creation claims nothing (no compensation needed);
+  // proof/verify/reject flows never release.
   const registrationsRoute = readFileSync(new URL("../src/app/api/payment/registrations/route.ts", import.meta.url), "utf8");
-  const releaseCalls = (registrationsRoute.match(/releaseDestinationSlot/g) ?? []).length;
-  assert.ok(releaseCalls >= 1);
+  assert.doesNotMatch(registrationsRoute, /claimNextDestinationSlot/);
+  assert.doesNotMatch(registrationsRoute, /releaseDestinationSlot/);
   const adminDelete = readFileSync(new URL("../src/app/api/admin/registrations/[publicId]/route.ts", import.meta.url), "utf8");
   assert.match(adminDelete, /releaseDestinationSlot/);
   const service = readFileSync(new URL("../src/lib/payment-flow-service.ts", import.meta.url), "utf8");
-  assert.doesNotMatch(service, /releaseDestinationSlot/);
+  // The only participant-flow release is Generate-QR compensation for a slot
+  // claim left unused by an aborted commitment (idempotent replay, seat
+  // FULL, attach conflict). Verify/reject never release (tests 19/21 bound
+  // those blocks).
+  assert.match(service, /releaseDestinationSlot\(input\.store\.destinations/);
 });
 
 // 26. immutable expectedAmount remains unchanged
 test("26. immutable expectedAmount remains unchanged", () => {
   const route = readFileSync(new URL("../src/app/api/payment/registrations/route.ts", import.meta.url), "utf8");
   assert.match(route, /Price snapshot stays immutable/);
-  assert.match(route, /\.\.\.snapshot, payeeName/);
+  // V3 creation stores the snapshot destination-free: no payee mirroring at
+  // creation (the authoritative payee arrives with Generate QR).
+  assert.doesNotMatch(route, /\.\.\.snapshot, payeeName/);
+  assert.doesNotMatch(route, /boundSnapshot/);
   // Amounts fixed.
   const pricing = readFileSync(new URL("../src/config/event.ts", import.meta.url), "utf8");
   assert.match(pricing, /earlyBirdAmount: 599/);
@@ -463,25 +492,22 @@ test("30. Account A payment_pending QR is blocked until reassigned", () => {
   assert.equal(resolved.kind, "assigned");
 });
 
-// CONCURRENCY STRESS TEST (mandatory): B at 9, concurrent burst → exactly one B slot 10
-test("STRESS: B at 9 with concurrent burst yields exactly one B-10 then C", async () => {
-  const col = makeFakeDestinations({ "account-b-shivam": { assignedCount: 9, status: "active" } });
+// CONCURRENCY STRESS TEST (mandatory): B at 19, concurrent burst → exactly one B slot 20
+test("STRESS: B at 19 with concurrent burst yields exactly one B-20 then C", async () => {
+  const col = makeFakeDestinations({ "account-b-shivam": { assignedCount: 19, status: "active" } });
   const results = await Promise.all(Array.from({ length: 20 }, () => claimNextDestinationSlot(col)));
   const ok = results.filter((r) => r.ok);
   assert.equal(ok.length, 20);
   const b = ok.filter((r) => r.destination.destinationId === "account-b-shivam");
   assert.equal(b.length, 1);
-  assert.equal(b[0].slotNumber, 10);
-  assert.equal(col.get("account-b-shivam").assignedCount, 10);
-  assert.ok(col.get("account-b-shivam").assignedCount <= 10, "B must NEVER reach 11");
-  // 1 slot went to B; remaining 19 spill to C (10) then D (9) in strict sequence.
+  assert.equal(b[0].slotNumber, 20);
+  assert.equal(col.get("account-b-shivam").assignedCount, 20);
+  assert.ok(col.get("account-b-shivam").assignedCount <= 20, "B must NEVER reach 21");
+  // 1 slot went to B; remaining 19 spill to C (cap 20) in strict sequence.
   const c = ok.filter((r) => r.destination.destinationId === "account-c-bhushan");
-  const d = ok.filter((r) => r.destination.destinationId === "account-d-shubham");
-  assert.equal(c.length, 10);
-  assert.equal(d.length, 9);
-  assert.deepEqual(c.map((r) => r.slotNumber).sort((x, y) => x - y), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-  assert.deepEqual(d.map((r) => r.slotNumber).sort((x, y) => x - y), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  assert.ok(col.get("account-c-bhushan").assignedCount <= 10, "C must NEVER exceed 10");
+  assert.equal(c.length, 19);
+  assert.deepEqual(c.map((r) => r.slotNumber).sort((x, y) => x - y), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+  assert.ok(col.get("account-c-bhushan").assignedCount <= 20, "C must NEVER exceed 20");
 });
 
 // Event config fallback removed for new flow
@@ -491,4 +517,113 @@ test("Account A removed from new-flow fallback; legacy clearly marked", () => {
   const route = readFileSync(new URL("../src/app/api/payment/registrations/route.ts", import.meta.url), "utf8");
   assert.doesNotMatch(route, /yashpatil76317@okicici/);
   assert.doesNotMatch(route, /Yash Patil/);
+});
+
+// 31. D is not assignable for new registrations (disabled, history preserved)
+test("31. D is not assignable for new registrations", () => {
+  const seed = PAYMENT_DESTINATION_SEEDS.find((s) => s.destinationId === "account-d-shubham");
+  assert.equal(seed.status, "disabled");
+  assert.equal(seed.allowNewAssignments, false);
+  assert.equal(seed.capacity, 10);
+  assert.equal(
+    isAssignableDestination({ destinationId: "account-d-shubham", status: "disabled", ownerApproved: true, allowNewAssignments: false, assignedCount: 0, capacity: 10 }),
+    false,
+  );
+});
+
+// 32. Priyanka is assignable when active
+test("32. Priyanka is assignable when active", async () => {
+  const seed = PAYMENT_DESTINATION_SEEDS.find((s) => s.destinationId === "account-f-priyanka");
+  assert.equal(seed.payeeName, "Priyanka Ripote (Ecell Team)");
+  assert.equal(seed.upiId, "9172140735@ybl");
+  assert.equal(seed.capacity, 10);
+  assert.equal(seed.sequence, 4);
+  assert.equal(seed.ownerApproved, true);
+  assert.equal(seed.allowNewAssignments, true);
+  assert.equal(
+    isAssignableDestination({ destinationId: "account-f-priyanka", status: "active", ownerApproved: true, allowNewAssignments: true, assignedCount: 0, capacity: 10 }),
+    true,
+  );
+  const col = makeFakeDestinations();
+  await claimN(col, 40); // exhaust B (20) + C (20); D skipped
+  const next = await claimNextDestinationSlot(col);
+  assert.equal(next.ok, true);
+  assert.equal(next.destination.destinationId, "account-f-priyanka");
+  assert.equal(next.snapshot.payeeName, "Priyanka Ripote (Ecell Team)");
+  assert.equal(next.snapshot.upiId, "9172140735@ybl");
+});
+
+// 33. approved ordering includes Priyanka before Sneha
+test("33. approved ordering includes Priyanka before Sneha", () => {
+  const order = [...APPROVED_DESTINATION_IDS_IN_SEQUENCE];
+  assert.ok(order.indexOf("account-f-priyanka") !== -1);
+  assert.ok(order.indexOf("account-f-priyanka") < order.indexOf("account-e-sneha"));
+  const seeds = [...PAYMENT_DESTINATION_SEEDS].sort((a, b) => a.sequence - b.sequence).map((s) => s.destinationId);
+  assert.ok(seeds.indexOf("account-f-priyanka") < seeds.indexOf("account-e-sneha"));
+});
+
+// 34. canonical caps: B 20, C 20, D 10, F 10, E 30
+test("34. canonical caps B 20 / C 20 / D 10 / F 10 / E 30", () => {
+  const byId = new Map(PAYMENT_DESTINATION_SEEDS.map((s) => [s.destinationId, s]));
+  assert.equal(byId.get("account-b-shivam").capacity, 20);
+  assert.equal(byId.get("account-c-bhushan").capacity, 20);
+  assert.equal(byId.get("account-d-shubham").capacity, 10);
+  assert.equal(byId.get("account-f-priyanka").capacity, 10);
+  assert.equal(byId.get("account-e-sneha").capacity, 30);
+});
+
+// 35. TOTAL_PAYMENT_CAPACITY stays derived from seeds (never hard-coded)
+test("35. TOTAL_PAYMENT_CAPACITY stays derived from seeds", () => {
+  const derived = PAYMENT_DESTINATION_SEEDS.filter((s) => s.destinationId !== ACCOUNT_A_DESTINATION_ID).reduce((sum, s) => sum + s.capacity, 0);
+  assert.equal(TOTAL_PAYMENT_CAPACITY, derived);
+  assert.equal(TOTAL_PAYMENT_CAPACITY, 90);
+  const src = readFileSync(new URL("../src/lib/payment-destinations.ts", import.meta.url), "utf8");
+  assert.match(src, /PAYMENT_DESTINATION_SEEDS\.filter/);
+  assert.doesNotMatch(src, /TOTAL_PAYMENT_CAPACITY(: number)? = 90/);
+  assert.doesNotMatch(src, /TOTAL_PAYMENT_CAPACITY(: number)? = 50/);
+});
+
+// 36. destinationShortLabel handles Account F
+test("36. destinationShortLabel handles Account F", () => {
+  assert.equal(destinationShortLabel("account-f-priyanka"), "Account F");
+  assert.equal(destinationShortLabel("account-b-shivam"), "Account B");
+  assert.equal(destinationShortLabel("account-d-shubham"), "Account D");
+  assert.equal(destinationShortLabel("account-e-sneha"), "Account E");
+});
+
+// 37. historical D destination snapshots still resolve
+test("37. historical D destination snapshots still resolve", () => {
+  const historical = {
+    payment: {
+      status: "verified",
+      snapshot: { expectedAmount: 599, currency: "INR", payeeName: "Shubham Jadhav (ECELL Team)", upiId: "9834717038@ybl", eventKey: "illuminate-2026", mode: "production", pricingTier: "early_bird", registrationAvailable: true, calculatedAt: new Date().toISOString() },
+      destination: { ...buildDestinationSnapshot({ destinationId: "account-d-shubham", internalLabel: "Shubham Account / Account D / E-Cell Payment 4", payeeName: "Shubham Jadhav (ECELL Team)", upiId: "9834717038@ybl" }), assignedAt: new Date() },
+      proofHistory: [],
+    },
+  };
+  const resolved = resolveRegistrationDestination(historical);
+  assert.equal(resolved.kind, "assigned");
+  assert.equal(resolved.destinationId, "account-d-shubham");
+  assert.equal(resolved.payeeName, "Shubham Jadhav (ECELL Team)");
+  assert.equal(resolved.upiId, "9834717038@ybl");
+});
+
+// 38. legacy UPI map routes Priyanka UPI to Account F
+test("38. legacy UPI map routes Priyanka UPI to Account F", () => {
+  assert.equal(destinationIdForLegacyUpi("9172140735@ybl"), "account-f-priyanka");
+  assert.equal(destinationIdForLegacyUpi("9834717038@ybl"), "account-d-shubham");
+  assert.equal(destinationIdForLegacyUpi("snehadagwar06@okicici"), "account-e-sneha");
+});
+
+// 39. usable capacity excludes disabled D (TOTAL 90, claimable 80)
+test("39. usable capacity excludes disabled D", async () => {
+  const disabledCap = PAYMENT_DESTINATION_SEEDS.filter((s) => s.status === "disabled" && s.destinationId !== ACCOUNT_A_DESTINATION_ID).reduce((sum, s) => sum + s.capacity, 0);
+  assert.equal(disabledCap, 10);
+  assert.equal(TOTAL_PAYMENT_CAPACITY - disabledCap, 80);
+  const col = makeFakeDestinations();
+  const results = await claimN(col, 80);
+  assert.ok(results.every((r) => r.ok));
+  const full = await claimNextDestinationSlot(col);
+  assert.equal(full.ok, false);
+  assert.equal(full.capacityFull, true);
 });

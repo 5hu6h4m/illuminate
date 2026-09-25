@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { apiError, isSameOrigin, sensitiveJson } from "@/lib/http";
-import { getDb, getPaymentDestinationsCollection, getRegistrationsCollection, isDbConfigured } from "@/lib/mongodb";
-import { ACCOUNT_A_DESTINATION_ID, TOTAL_PAYMENT_CAPACITY } from "@/lib/payment-destinations";
+import { getDb, getEventCapacityCollection, getPaymentDestinationsCollection, getRegistrationsCollection, isDbConfigured } from "@/lib/mongodb";
+import { ACCOUNT_A_DESTINATION_ID, EVENT_VERIFIED_SEAT_LIMIT, TOTAL_PAYMENT_CAPACITY } from "@/lib/payment-destinations";
+import { EVENT_CAPACITY_ID } from "@/lib/event-capacity";
 import { realRegistrationFilter } from "@/lib/registration-filters";
 
 export const runtime = "nodejs";
@@ -23,15 +24,45 @@ async function capacityOverview() {
   const destinations = await (await getPaymentDestinationsCollection()).find({}).sort({ sequence: 1 }).toArray();
   const approved = destinations.filter((d) => d.destinationId !== ACCOUNT_A_DESTINATION_ID);
   const assigned = approved.reduce((sum, d) => sum + (d.assignedCount ?? 0), 0);
+  // Claimable by future Generate QR: only destinations actually eligible for
+  // assignment (approved + allowing + active/available). Disabled (D),
+  // unapproved, exhausted-unavailable, and legacy A never contribute — this
+  // is the authoritative payment-side remaining, NOT total-minus-assigned.
+  const isClaimable = (d: { status: string; ownerApproved: boolean; allowNewAssignments: boolean }) =>
+    d.ownerApproved === true && d.allowNewAssignments === true && (d.status === "active" || d.status === "available");
+  const claimableRemaining = approved
+    .filter(isClaimable)
+    .reduce((sum, d) => sum + Math.max(0, (d.capacity ?? 0) - (d.assignedCount ?? 0)), 0);
   const registrations = await getRegistrationsCollection();
   const accountAPendingCount = await registrations.countDocuments({
     ...realRegistrationFilter,
     "payment.status": "payment_pending",
+    // V3 drafts share the legacy snapshot shape (no destination) but heal
+    // via explicit Generate QR — they are NOT Account A reassignment work.
+    "payment.pendingQRGeneration": { $ne: true },
     $or: [
       { "payment.destination.destinationId": ACCOUNT_A_DESTINATION_ID },
       { "payment.destination.destinationId": { $exists: false }, "payment.snapshot.upiId": "yashpatil76317@okicici" },
     ],
   });
+  // Event-seat observability (read-only; never auto-creates the counter).
+  // committedCount comes from the event_capacity document; the reporting
+  // counts come from live registrations. They are related but different V3
+  // metrics: reporting counts verified+submitted, while committed also
+  // includes QR-issued pendings (and historical destination-backed rows).
+  const [verifiedCount, awaitingVerificationCount, qrIssuedPendingCount, draftWithoutQrCount, capacityDoc] = await Promise.all([
+    registrations.countDocuments({ ...realRegistrationFilter, "payment.status": "verified" }),
+    registrations.countDocuments({ ...realRegistrationFilter, "payment.status": "submitted_for_verification" }),
+    registrations.countDocuments({ ...realRegistrationFilter, "payment.status": "payment_pending", "payment.destination.destinationId": { $exists: true } }),
+    registrations.countDocuments({ ...realRegistrationFilter, "payment.status": "payment_pending", "payment.destination.destinationId": { $exists: false } }),
+    (await getEventCapacityCollection()).findOne({ _id: EVENT_CAPACITY_ID }),
+  ]);
+  const initialized = capacityDoc !== null
+    && Number.isInteger(capacityDoc.seatLimit)
+    && capacityDoc.seatLimit === EVENT_VERIFIED_SEAT_LIMIT
+    && Number.isInteger(capacityDoc.committedCount)
+    && capacityDoc.committedCount >= 0;
+  const committedCount = initialized && capacityDoc !== null ? capacityDoc.committedCount : null;
   return {
     destinations: destinations.map((d) => ({
       destinationId: d.destinationId,
@@ -42,6 +73,7 @@ async function capacityOverview() {
       capacity: d.capacity,
       assignedCount: d.assignedCount,
       remaining: Math.max(0, (d.capacity ?? 0) - (d.assignedCount ?? 0)),
+      claimable: isClaimable(d),
       status: d.status,
       ownerApproved: d.ownerApproved,
       allowNewAssignments: d.allowNewAssignments,
@@ -52,8 +84,20 @@ async function capacityOverview() {
     totalCapacity: TOTAL_PAYMENT_CAPACITY,
     assigned,
     remaining: Math.max(0, TOTAL_PAYMENT_CAPACITY - assigned),
+    claimableRemaining,
     accountAPendingCount,
-    capacityFull: assigned >= TOTAL_PAYMENT_CAPACITY,
+    capacityFull: claimableRemaining <= 0,
+    eventCapacity: {
+      initialized,
+      seatLimit: EVENT_VERIFIED_SEAT_LIMIT,
+      committedCount,
+      remaining: committedCount === null ? null : Math.max(0, EVENT_VERIFIED_SEAT_LIMIT - committedCount),
+      reportingClaimedCount: verifiedCount + awaitingVerificationCount,
+      verifiedCount,
+      awaitingVerificationCount,
+      qrIssuedPendingCount,
+      draftWithoutQrCount,
+    },
   };
 }
 
@@ -115,8 +159,13 @@ export async function POST(request: Request) {
       }
       const remaining = Math.max(0, target.capacity - target.assignedCount);
       // Only payment_pending may be bulk-reassigned — never submitted / verified / rejected.
+      // V3 drafts (pendingQRGeneration) are excluded from the legacy Account A
+      // source: they carry no destination, consume no slot/seat, and heal via
+      // explicit Generate QR. Moving one here would attach a destination
+      // WITHOUT an event-seat commitment, breaking the QR-issuance invariant.
       const sourceMatch = fromDestinationId === ACCOUNT_A_DESTINATION_ID
         ? {
+          "payment.pendingQRGeneration": { $ne: true },
             $or: [
               { "payment.destination.destinationId": ACCOUNT_A_DESTINATION_ID },
               { "payment.destination.destinationId": { $exists: false }, "payment.snapshot.upiId": "yashpatil76317@okicici" },

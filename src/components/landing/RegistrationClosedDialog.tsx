@@ -15,13 +15,13 @@ const COPY: Record<RegistrationClosedVariant, { titleId: string; title: string; 
   full: {
     titleId: "registration-full-title",
     title: "Registrations are full",
-    body: "Thank you so much for your interest in Illuminate 2026! All 90 seats have now been filled and registrations are closed. We are grateful for the overwhelming response.",
+    body: "Thank you so much for your interest in Illuminate 2026! All 120 seats have now been filled and registrations are closed. We are grateful for the overwhelming response.",
   },
 };
 
 /**
  * Thankful "no new registrations" popup. `closed` = admin manually closed
- * registrations; `full` = the 90-seat event cap was reached. Celebratory,
+ * registrations; `full` = the 120-seat event cap was reached. Celebratory,
  * not an error wall: thanks the visitor and routes existing holders to
  * login. Escape or backdrop click dismisses; any inline form message stays.
  *

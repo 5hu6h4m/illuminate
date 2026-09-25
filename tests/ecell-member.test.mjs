@@ -22,7 +22,9 @@ test("ecell toggle has strict zod schema and allowlist update", () => {
   assert.match(route, /action.*ecell/);
   assert.match(service, /setEcellMemberFlag/);
   assert.match(service, /\$set: \{ ecellMember:/);
-  const ecellFn = service.slice(service.indexOf("setEcellMemberFlag"));
+  const ecellStart = service.indexOf("setEcellMemberFlag");
+  const ecellEnd = service.indexOf("\nexport ", service.indexOf("export async function setEcellMemberFlag") + 1);
+  const ecellFn = service.slice(ecellStart, ecellEnd === -1 ? undefined : ecellEnd);
   assert.doesNotMatch(ecellFn, /payment\.snapshot/);
   assert.doesNotMatch(ecellFn, /"payment\./);
 });

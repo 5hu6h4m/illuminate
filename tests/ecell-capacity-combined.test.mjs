@@ -35,7 +35,9 @@ test("combined 1: ecell flag and assigned destination coexist", () => {
 // 2. Toggling E-cell leaves destination unchanged.
 test("combined 2: ecell toggle preserves destination", () => {
   const service = src("../src/lib/payment-flow-service.ts");
-  const block = service.slice(service.indexOf("export async function setEcellMemberFlag"));
+  const start = service.indexOf("export async function setEcellMemberFlag");
+  const end = service.indexOf("\nexport ", start + 1);
+  const block = service.slice(start, end === -1 ? undefined : end);
   assert.match(block, /\$set: \{ ecellMember: input\.ecellMember, updatedAt: now \}/);
   assert.doesNotMatch(block, /payment\.destination/);
   assert.doesNotMatch(block, /payment\.snapshot/);
